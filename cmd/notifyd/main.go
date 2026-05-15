@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,10 +16,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/mertovun/event-driven-notification-system/internal/api"
 	"github.com/mertovun/event-driven-notification-system/internal/config"
 	"github.com/mertovun/event-driven-notification-system/internal/store"
 )
@@ -92,7 +90,12 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	defer pool.Close()
 	logger.Info("postgres connected", "max_conns", 20)
 
-	srv := newHTTPServer(cfg.HTTPAddr, logger, pool)
+	router := api.NewRouter(api.Deps{
+		Pool:      pool,
+		Logger:    logger,
+		BuildInfo: api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
+	})
+	srv := newHTTPServer(cfg.HTTPAddr, logger, router)
 
 	g, gctx := errgroup.WithContext(ctx)
 
@@ -115,15 +118,10 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	return g.Wait()
 }
 
-func newHTTPServer(addr string, logger *slog.Logger, pool *pgxpool.Pool) *http.Server {
-	r := chi.NewRouter()
-	r.Get("/livez", livezHandler)
-	r.Get("/readyz", readyzHandler(pool))
-	r.Get("/version", versionHandler)
-
+func newHTTPServer(addr string, logger *slog.Logger, handler http.Handler) *http.Server {
 	return &http.Server{
 		Addr:              addr,
-		Handler:           r,
+		Handler:           handler,
 		ReadTimeout:       10 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -143,50 +141,4 @@ func parseLogLevel(s string) slog.Level {
 	default:
 		return slog.LevelInfo
 	}
-}
-
-func livezHandler(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok\n"))
-}
-
-// readyzHandler returns a JSON breakdown of dependency health.
-// Returns 200 only when every dependency check passes; 503 otherwise.
-// See docs/06-observability.md §6.
-func readyzHandler(pool *pgxpool.Pool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
-		defer cancel()
-
-		checks := map[string]string{"postgres": "ok"}
-		ok := true
-
-		if err := pool.Ping(ctx); err != nil {
-			checks["postgres"] = "unreachable: " + err.Error()
-			ok = false
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if !ok {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"ok":     ok,
-			"checks": checks,
-		})
-	}
-}
-
-func versionHandler(w http.ResponseWriter, _ *http.Request) {
-	body := struct {
-		Version   string `json:"version"`
-		Commit    string `json:"commit"`
-		BuildTime string `json:"build_time"`
-		GoVersion string `json:"go_version"`
-	}{Version, Commit, BuildTime, runtime.Version()}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(body)
 }
