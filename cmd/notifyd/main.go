@@ -16,10 +16,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mertovun/event-driven-notification-system/internal/api"
 	"github.com/mertovun/event-driven-notification-system/internal/config"
+	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
 	"github.com/mertovun/event-driven-notification-system/internal/store"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 )
@@ -93,6 +95,25 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 
 	q := gen.New(pool)
 
+	redisOpts, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		return fmt.Errorf("parse redis url: %w", err)
+	}
+	redisOpts.ReadTimeout = 200 * time.Millisecond
+	redisOpts.WriteTimeout = 200 * time.Millisecond
+	rdb := redis.NewClient(redisOpts)
+	defer func() { _ = rdb.Close() }()
+
+	pingCtx, cancelPing := context.WithTimeout(ctx, 2*time.Second)
+	if err := rdb.Ping(pingCtx).Err(); err != nil {
+		cancelPing()
+		return fmt.Errorf("redis ping: %w", err)
+	}
+	cancelPing()
+	logger.Info("redis connected")
+
+	idemStore := idempotency.NewStore(rdb, 0)
+
 	if cfg.DevAPIKey != "" {
 		if err := api.SeedDevKey(ctx, q, cfg.DevAPIKey); err != nil {
 			return fmt.Errorf("seed dev api key: %w", err)
@@ -101,10 +122,12 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	}
 
 	router := api.NewRouter(api.Deps{
-		Pool:      pool,
-		Queries:   q,
-		Logger:    logger,
-		BuildInfo: api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
+		Pool:        pool,
+		Queries:     q,
+		Idempotency: idemStore,
+		Redis:       rdb,
+		Logger:      logger,
+		BuildInfo:   api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
 	})
 	srv := newHTTPServer(cfg.HTTPAddr, logger, router)
 
