@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
@@ -108,6 +110,13 @@ func (d *Dispatcher) publishRow(ctx context.Context, row gen.Outbox) {
 		}
 	}
 
+	// Resume the API-side trace via the propagator if the row carries traceparent.
+	carrier := propagationHeaders(hdrs)
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+	tr := otel.Tracer("notifyd/outbox")
+	ctx, span := tr.Start(ctx, "outbox.dispatch")
+	defer span.End()
+
 	// Priority comes off the smallint column; AMQP carries an uint8.
 	priority := uint8(row.Priority)
 	if priority > 9 {
@@ -193,6 +202,28 @@ func extractNotificationID(payload []byte) string {
 		return ""
 	}
 	return env.NotificationID
+}
+
+// propagationHeaders adapts the outbox headers map to OTel's TextMapCarrier.
+type propagationHeaders map[string]any
+
+var _ propagation.TextMapCarrier = (propagationHeaders)(nil)
+
+func (m propagationHeaders) Get(key string) string {
+	if v, ok := m[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+func (m propagationHeaders) Set(key, value string) { m[key] = value }
+func (m propagationHeaders) Keys() []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func truncate(s string, n int) string {

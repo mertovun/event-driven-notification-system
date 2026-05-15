@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel"
 
 	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
 	"github.com/mertovun/event-driven-notification-system/internal/notification"
@@ -274,6 +275,8 @@ func (h *notificationsHandler) persist(
 		if idemKey != "" {
 			headers["x-idempotency-key"] = idemKey
 		}
+		// Inject W3C trace context so the worker continues the same trace.
+		otel.GetTextMapPropagator().Inject(ctx, mapHeadersCarrier(headers))
 		headersJSON, _ := json.Marshal(headers)
 
 		if _, err := qtx.InsertOutbox(ctx, gen.InsertOutboxParams{
@@ -373,4 +376,26 @@ func nullableString(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// mapHeadersCarrier adapts a map[string]any to the OTel TextMapCarrier interface
+// so the propagator can inject traceparent / tracestate / baggage into headers
+// destined for the outbox row's JSONB column.
+type mapHeadersCarrier map[string]any
+
+func (m mapHeadersCarrier) Get(key string) string {
+	if v, ok := m[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+func (m mapHeadersCarrier) Set(key, value string) { m[key] = value }
+func (m mapHeadersCarrier) Keys() []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

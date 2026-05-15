@@ -201,7 +201,15 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		Logger:      logger,
 		BuildInfo:   api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
 	})
-	tracedRouter := otelhttp.NewHandler(router, "notifyd-http")
+	tracedRouter := otelhttp.NewHandler(router, "notifyd-http",
+		otelhttp.WithFilter(func(r *http.Request) bool {
+			switch r.URL.Path {
+			case "/livez", "/readyz", "/metrics", "/version", "/openapi.yaml", "/docs":
+				return false
+			}
+			return true
+		}),
+	)
 	srv := newHTTPServer(cfg.HTTPAddr, logger, tracedRouter)
 
 	g, gctx := errgroup.WithContext(ctx)
