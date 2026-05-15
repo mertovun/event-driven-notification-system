@@ -13,6 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
+	"github.com/mertovun/event-driven-notification-system/internal/observability"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 )
 
@@ -36,6 +37,7 @@ type Deps struct {
 	Idempotency *idempotency.Store
 	Redis       *redis.Client
 	AMQP        AMQPHealthChecker
+	Metrics     *observability.Metrics
 	Logger      *slog.Logger
 	BuildInfo   BuildInfo
 }
@@ -55,6 +57,9 @@ func NewRouter(d Deps) http.Handler {
 	r.Get("/livez", livezHandler)
 	r.Get("/readyz", readyzHandler(d))
 	r.Get("/version", versionHandler(d.BuildInfo))
+	if d.Metrics != nil {
+		r.Method(http.MethodGet, "/metrics", d.Metrics.Handler())
+	}
 
 	// API spec + Swagger UI — no auth so reviewers can browse without a key.
 	r.Get("/openapi.yaml", openAPIHandler)

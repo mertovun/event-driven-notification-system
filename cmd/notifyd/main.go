@@ -23,6 +23,7 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/api"
 	"github.com/mertovun/event-driven-notification-system/internal/config"
 	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
+	"github.com/mertovun/event-driven-notification-system/internal/observability"
 	"github.com/mertovun/event-driven-notification-system/internal/outbox"
 	"github.com/mertovun/event-driven-notification-system/internal/provider"
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
@@ -101,6 +102,9 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 
 	q := gen.New(pool)
 
+	metrics := observability.NewMetrics()
+	metrics.SetBuildInfo(Version, Commit, runtime.Version())
+
 	redisOpts, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
 		return fmt.Errorf("parse redis url: %w", err)
@@ -167,6 +171,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		Idempotency: idemStore,
 		Redis:       rdb,
 		AMQP:        amqpChecker(pub),
+		Metrics:     metrics,
 		Logger:      logger,
 		BuildInfo:   api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
 	})
