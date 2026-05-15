@@ -306,11 +306,14 @@ func (q *Queries) MarkQueued(ctx context.Context, id uuid.UUID) (Notification, e
 const markSendingCAS = `-- name: MarkSendingCAS :one
 UPDATE notifications
 SET status = 'sending', updated_at = now()
-WHERE id = $1 AND status = 'queued'
+WHERE id = $1 AND status IN ('pending', 'queued')
 RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version
 `
 
-// Worker pickup: queued → sending. Returns 0 rows if losing the race (cancelled meanwhile).
+// Worker pickup: pending OR queued → sending.
+// We accept both because the AMQP consumer can race the dispatcher's MarkQueued —
+// the worker may receive a delivery while the row is still 'pending'.
+// Returns 0 rows only if the row was already cancelled / past 'sending'.
 func (q *Queries) MarkSendingCAS(ctx context.Context, id uuid.UUID) (Notification, error) {
 	row := q.db.QueryRow(ctx, markSendingCAS, id)
 	var i Notification

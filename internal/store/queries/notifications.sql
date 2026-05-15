@@ -34,10 +34,13 @@ WHERE id = $1 AND status = 'pending'
 RETURNING *;
 
 -- name: MarkSendingCAS :one
--- Worker pickup: queued → sending. Returns 0 rows if losing the race (cancelled meanwhile).
+-- Worker pickup: pending OR queued → sending.
+-- We accept both because the AMQP consumer can race the dispatcher's MarkQueued —
+-- the worker may receive a delivery while the row is still 'pending'.
+-- Returns 0 rows only if the row was already cancelled / past 'sending'.
 UPDATE notifications
 SET status = 'sending', updated_at = now()
-WHERE id = $1 AND status = 'queued'
+WHERE id = $1 AND status IN ('pending', 'queued')
 RETURNING *;
 
 -- name: MarkSent :one

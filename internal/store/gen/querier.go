@@ -55,7 +55,10 @@ type Querier interface {
 	MarkOutboxPublished(ctx context.Context, id uuid.UUID) error
 	// Outbox dispatcher transition: pending → queued after publish confirm.
 	MarkQueued(ctx context.Context, id uuid.UUID) (Notification, error)
-	// Worker pickup: queued → sending. Returns 0 rows if losing the race (cancelled meanwhile).
+	// Worker pickup: pending OR queued → sending.
+	// We accept both because the AMQP consumer can race the dispatcher's MarkQueued —
+	// the worker may receive a delivery while the row is still 'pending'.
+	// Returns 0 rows only if the row was already cancelled / past 'sending'.
 	MarkSendingCAS(ctx context.Context, id uuid.UUID) (Notification, error)
 	MarkSent(ctx context.Context, id uuid.UUID) (Notification, error)
 	OutboxLagSeconds(ctx context.Context) (float64, error)

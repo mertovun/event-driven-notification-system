@@ -24,9 +24,12 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/config"
 	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
 	"github.com/mertovun/event-driven-notification-system/internal/outbox"
+	"github.com/mertovun/event-driven-notification-system/internal/provider"
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
+	"github.com/mertovun/event-driven-notification-system/internal/ratelimit"
 	"github.com/mertovun/event-driven-notification-system/internal/store"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
+	"github.com/mertovun/event-driven-notification-system/internal/worker"
 )
 
 // Injected via -ldflags at build time.
@@ -124,10 +127,13 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		logger.Info("dev api key seeded", "prefix", cfg.DevAPIKey[:8])
 	}
 
-	// Queue publisher + outbox dispatcher run in worker / all mode.
-	// Build it before the router so /readyz can include it in the checks.
-	var pub *queue.Publisher
-	var disp *outbox.Dispatcher
+	// Queue publisher + outbox dispatcher + worker pools run in worker / all mode.
+	// Build them before the router so /readyz can include AMQP in the checks.
+	var (
+		pub     *queue.Publisher
+		disp    *outbox.Dispatcher
+		workMgr *worker.Manager
+	)
 	if cfg.Mode == "worker" || cfg.Mode == "all" {
 		var err error
 		pub, err = queue.NewPublisher(ctx, cfg.AMQPURL, logger)
@@ -141,6 +147,18 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		cfgD.PollInterval = cfg.OutboxPollInterval
 		cfgD.BatchSize = cfg.OutboxBatchSize
 		disp = outbox.New(pool, q, pub, logger, cfgD)
+
+		// Provider client + rate limiter + worker manager.
+		provClient, err := provider.New(cfg.WebhookURL, "notifyd/0.1")
+		if err != nil {
+			return fmt.Errorf("provider client: %w", err)
+		}
+		limiter := ratelimit.New(rdb)
+		workMgr = worker.NewManager(cfg.AMQPURL, pool, q, rdb, limiter, provClient, logger, worker.PoolSpec{
+			SMSCount:   cfg.WorkerCountSMS,
+			EmailCount: cfg.WorkerCountEmail,
+			PushCount:  cfg.WorkerCountPush,
+		})
 	}
 
 	router := api.NewRouter(api.Deps{
@@ -158,6 +176,9 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 
 	if disp != nil {
 		g.Go(func() error { return disp.Run(gctx) })
+	}
+	if workMgr != nil {
+		g.Go(func() error { return workMgr.Run(gctx) })
 	}
 
 	g.Go(func() error {
