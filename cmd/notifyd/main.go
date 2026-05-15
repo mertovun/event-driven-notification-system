@@ -19,6 +19,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/mertovun/event-driven-notification-system/internal/config"
 )
 
 // Injected via -ldflags at build time.
@@ -29,43 +31,55 @@ var (
 )
 
 func main() {
-	mode := flag.String("mode", "all", "run mode: api | worker | all")
-	addr := flag.String("addr", ":8080", "HTTP listen address")
+	modeFlag := flag.String("mode", "", "run mode: api | worker | all (overrides MODE env)")
+	addrFlag := flag.String("addr", "", "HTTP listen address (overrides HTTP_ADDR env)")
 	flag.Parse()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(2)
+	}
+	if *modeFlag != "" {
+		cfg.Mode = *modeFlag
+	}
+	if *addrFlag != "" {
+		cfg.HTTPAddr = *addrFlag
+	}
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: parseLogLevel(cfg.LogLevel)}))
 	slog.SetDefault(logger)
 
 	logger.Info("starting notifyd",
 		"version", Version,
 		"commit", Commit,
 		"build_time", BuildTime,
-		"mode", *mode,
+		"mode", cfg.Mode,
 		"go", runtime.Version(),
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	if err := run(ctx, *mode, *addr, logger); err != nil {
+	if err := run(ctx, cfg, logger); err != nil {
 		logger.Error("fatal", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, mode, addr string, logger *slog.Logger) error {
-	switch mode {
+func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	switch cfg.Mode {
 	case "api", "worker", "all":
 	default:
-		return fmt.Errorf("invalid --mode %q (want api | worker | all)", mode)
+		return fmt.Errorf("invalid mode %q (want api | worker | all)", cfg.Mode)
 	}
 
-	srv := newHTTPServer(addr, logger)
+	srv := newHTTPServer(cfg.HTTPAddr, logger)
 
 	g, gctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		logger.Info("http server listening", "addr", addr)
+		logger.Info("http server listening", "addr", cfg.HTTPAddr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return fmt.Errorf("http server: %w", err)
 		}
@@ -96,6 +110,19 @@ func newHTTPServer(addr string, logger *slog.Logger) *http.Server {
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelError),
+	}
+}
+
+func parseLogLevel(s string) slog.Level {
+	switch s {
+	case "debug":
+		return slog.LevelDebug
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
 	}
 }
 
