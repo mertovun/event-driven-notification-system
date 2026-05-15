@@ -55,8 +55,15 @@ func NewRouter(d Deps) http.Handler {
 		api.Use(MaxBodyBytes(MaxBodyBytesDefault))
 		api.Use(AuthMiddleware(d.Queries))
 
-		// notifications
-		api.With(RequireScope(ScopeWrite)).Post("/notifications", notifH.create)
+		// notifications — write
+		api.Route("/notifications", func(n chi.Router) {
+			n.With(RequireScope(ScopeWrite)).Post("/", notifH.create)
+			n.With(MaxBodyBytes(MaxBodyBytesBatch), RequireScope(ScopeWrite)).
+				Post("/batch", notifH.createBatch)
+			n.With(RequireScope(ScopeWrite)).Delete("/{id}", notifH.cancel)
+			n.With(RequireScope(ScopeRead)).Get("/{id}", notifH.get)
+			n.With(RequireScope(ScopeRead)).Get("/batch/{batchId}", notifH.getByBatch)
+		})
 	})
 
 	r.NotFound(noStaticFiles)
