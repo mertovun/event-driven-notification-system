@@ -17,7 +17,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mertovun/event-driven-notification-system/internal/api"
@@ -106,6 +108,26 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	metrics := observability.NewMetrics()
 	metrics.SetBuildInfo(Version, Commit, runtime.Version())
 
+	// OpenTelemetry tracing — ON by default; falls back to no-op on collector unavailability.
+	instanceID, _ := uuid.NewV7()
+	otelShutdown, _, err := observability.SetupTracing(ctx, observability.OTelConfig{
+		Endpoint:   cfg.OTELEndpoint,
+		SampleRate: cfg.OTELSampleRatio,
+		Disabled:   cfg.OTELDisabled,
+		Service:    "notifyd",
+		Version:    Version,
+		InstanceID: instanceID.String(),
+		Env:        "dev",
+	}, logger)
+	if err != nil {
+		return fmt.Errorf("otel setup: %w", err)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = otelShutdown(shutdownCtx)
+	}()
+
 	redisOpts, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
 		return fmt.Errorf("parse redis url: %w", err)
@@ -113,6 +135,9 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	redisOpts.ReadTimeout = 200 * time.Millisecond
 	redisOpts.WriteTimeout = 200 * time.Millisecond
 	rdb := redis.NewClient(redisOpts)
+	if err := redisotel.InstrumentTracing(rdb); err != nil {
+		logger.Warn("redis tracing instrumentation failed", "err", err)
+	}
 	defer func() { _ = rdb.Close() }()
 
 	pingCtx, cancelPing := context.WithTimeout(ctx, 2*time.Second)
@@ -176,7 +201,8 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		Logger:      logger,
 		BuildInfo:   api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
 	})
-	srv := newHTTPServer(cfg.HTTPAddr, logger, router)
+	tracedRouter := otelhttp.NewHandler(router, "notifyd-http")
+	srv := newHTTPServer(cfg.HTTPAddr, logger, tracedRouter)
 
 	g, gctx := errgroup.WithContext(ctx)
 
