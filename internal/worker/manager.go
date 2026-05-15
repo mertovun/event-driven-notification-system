@@ -10,6 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/mertovun/event-driven-notification-system/internal/observability"
 	"github.com/mertovun/event-driven-notification-system/internal/provider"
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
 	"github.com/mertovun/event-driven-notification-system/internal/ratelimit"
@@ -25,6 +26,7 @@ type Manager struct {
 	rdb     *redis.Client
 	limiter *ratelimit.Limiter
 	prov    *provider.HTTPClient
+	metrics *observability.Metrics
 	logger  *slog.Logger
 	counts  map[string]int // channel → worker count
 
@@ -47,6 +49,7 @@ func NewManager(
 	rdb *redis.Client,
 	limiter *ratelimit.Limiter,
 	prov *provider.HTTPClient,
+	metrics *observability.Metrics,
 	logger *slog.Logger,
 	spec PoolSpec,
 ) *Manager {
@@ -57,6 +60,7 @@ func NewManager(
 		rdb:     rdb,
 		limiter: limiter,
 		prov:    prov,
+		metrics: metrics,
 		logger:  logger,
 		counts: map[string]int{
 			"sms":   spec.SMSCount,
@@ -83,7 +87,7 @@ func (m *Manager) Run(ctx context.Context) error {
 			continue
 		}
 		// One Pipeline per channel — shared across the N workers for that channel.
-		pipe := New(chName, m.pool, m.q, m.rdb, m.limiter, m.prov, m.logger)
+		pipe := New(chName, m.pool, m.q, m.rdb, m.limiter, m.prov, m.metrics, m.logger)
 
 		for i := 0; i < count; i++ {
 			workerName := fmt.Sprintf("%s-%d", chName, i)

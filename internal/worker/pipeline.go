@@ -17,6 +17,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sony/gobreaker"
 
+	"github.com/mertovun/event-driven-notification-system/internal/observability"
 	"github.com/mertovun/event-driven-notification-system/internal/provider"
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
 	"github.com/mertovun/event-driven-notification-system/internal/ratelimit"
@@ -44,6 +45,7 @@ type Pipeline struct {
 	limiter  *ratelimit.Limiter
 	provider *provider.HTTPClient
 	breaker  *gobreaker.CircuitBreaker
+	metrics  *observability.Metrics
 	logger   *slog.Logger
 
 	// Rate-limit settings — 100/s per channel, capacity = 1s burst (docs/04 §2).
@@ -59,6 +61,7 @@ func New(
 	rdb *redis.Client,
 	limiter *ratelimit.Limiter,
 	prov *provider.HTTPClient,
+	metrics *observability.Metrics,
 	logger *slog.Logger,
 ) *Pipeline {
 	chanLogger := logger.With("channel", channel)
@@ -70,6 +73,7 @@ func New(
 		limiter:         limiter,
 		provider:        prov,
 		breaker:         newBreaker(channel, chanLogger),
+		metrics:         metrics,
 		logger:          chanLogger,
 		rateLimitPerSec: 100,
 		rateCapacity:    100,
@@ -79,6 +83,28 @@ func New(
 // Handle is the queue.Handler for one delivery.
 // Returns nil to ack; queue.ErrTerminal to nack-to-DLQ; any other error to nack-and-requeue.
 func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
+	if p.metrics != nil {
+		p.metrics.WorkerActive.WithLabelValues(p.channel).Inc()
+		defer p.metrics.WorkerActive.WithLabelValues(p.channel).Dec()
+	}
+	start := time.Now()
+	err := p.handle(ctx, d)
+	if p.metrics != nil {
+		p.metrics.DeliveryDurationSecs.WithLabelValues(p.channel).Observe(time.Since(start).Seconds())
+		switch {
+		case err == nil:
+			p.metrics.NotificationsDeliveredTotal.WithLabelValues(p.channel, "success").Inc()
+		case errors.Is(err, queue.ErrTerminal):
+			p.metrics.NotificationsDeliveredTotal.WithLabelValues(p.channel, "dead_letter").Inc()
+		default:
+			p.metrics.NotificationsDeliveredTotal.WithLabelValues(p.channel, "failure").Inc()
+		}
+	}
+	return err
+}
+
+// handle is the inner pipeline; Handle wraps with metrics.
+func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 	// 1) Decode envelope. Malformed → terminal (can't be retried meaningfully).
 	var env envelope
 	if err := json.Unmarshal(d.Body(), &env); err != nil {
@@ -125,6 +151,9 @@ func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 		return fmt.Errorf("ratelimit: %w", err)
 	}
 	if !dec.Allowed {
+		if p.metrics != nil {
+			p.metrics.RateLimitThrottledTotal.WithLabelValues(p.channel).Inc()
+		}
 		// Throttled. Briefly wait (short throttle, ≤200ms) and re-check; otherwise nack-requeue.
 		wait := dec.RetryAfter
 		const maxInlineWait = 200 * time.Millisecond
@@ -155,6 +184,7 @@ func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 
 	// 6) Provider call — wrapped in circuit breaker per channel.
 	attempt := row.AttemptCount + 1
+	providerStart := time.Now()
 	rawResult, breakerErr := p.breaker.Execute(func() (any, error) {
 		return p.provider.Send(ctx, provider.SendRequest{
 			To:      env.Recipient,
@@ -162,6 +192,9 @@ func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 			Content: env.Content,
 		}, env.CorrelationID)
 	})
+	if p.metrics != nil {
+		p.metrics.ProviderDurationSecs.WithLabelValues(p.channel).Observe(time.Since(providerStart).Seconds())
+	}
 
 	// If the breaker is open, treat as a retryable failure (not per-message fault).
 	if errors.Is(breakerErr, gobreaker.ErrOpenState) || errors.Is(breakerErr, gobreaker.ErrTooManyRequests) {
@@ -196,6 +229,9 @@ func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 		// 8a) Decide retry vs terminal.
 		var se *provider.SendError
 		if errors.As(callErr, &se) && se.Kind.IsRetryable() {
+			if p.metrics != nil {
+				p.metrics.NotificationRetryTotal.WithLabelValues(p.channel, attemptLabel(attempt)).Inc()
+			}
 			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID, LastError: &errStr})
 			logger.Info("retryable failure; reverted to queued",
 				"attempt", attempt, "kind", se.Kind, "status", se.HTTPStatus)
@@ -247,6 +283,14 @@ func httpStatusOf(err error) *int32 {
 		return &s
 	}
 	return nil
+}
+
+// attemptLabel caps the attempt label cardinality to 5+.
+func attemptLabel(attempt int32) string {
+	if attempt >= 5 {
+		return "5+"
+	}
+	return fmt.Sprint(attempt)
 }
 
 func truncate(s string, n int) string {

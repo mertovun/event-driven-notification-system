@@ -15,6 +15,7 @@ import (
 
 	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
 	"github.com/mertovun/event-driven-notification-system/internal/notification"
+	"github.com/mertovun/event-driven-notification-system/internal/observability"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 	tmpl "github.com/mertovun/event-driven-notification-system/internal/template"
 )
@@ -53,13 +54,14 @@ type notificationResponse struct {
 
 // notificationsHandler holds the deps the resource handlers need.
 type notificationsHandler struct {
-	pool *pgxpool.Pool
-	q    *gen.Queries
-	idem *idempotency.Store
+	pool    *pgxpool.Pool
+	q       *gen.Queries
+	idem    *idempotency.Store
+	metrics *observability.Metrics
 }
 
 func newNotificationsHandler(d Deps, idem *idempotency.Store) *notificationsHandler {
-	return &notificationsHandler{pool: d.Pool, q: d.Queries, idem: idem}
+	return &notificationsHandler{pool: d.Pool, q: d.Queries, idem: idem, metrics: d.Metrics}
 }
 
 // create handles POST /v1/notifications (single).
@@ -154,6 +156,9 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 		}
 		if replay != nil {
 			// Replay: emit the stored response verbatim.
+			if h.metrics != nil {
+				h.metrics.IdempotencyReplayTotal.WithLabelValues("POST /v1/notifications").Inc()
+			}
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Idempotency-Replayed", "true")
 			w.WriteHeader(replay.StatusCode)
@@ -190,6 +195,10 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 			StatusCode: status,
 			Body:       body,
 		})
+	}
+
+	if h.metrics != nil {
+		h.metrics.NotificationsCreatedTotal.WithLabelValues(string(req.Channel), string(req.Priority)).Inc()
 	}
 
 	w.Header().Set("Content-Type", "application/json")

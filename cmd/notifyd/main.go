@@ -158,7 +158,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 			return fmt.Errorf("provider client: %w", err)
 		}
 		limiter := ratelimit.New(rdb)
-		workMgr = worker.NewManager(cfg.AMQPURL, pool, q, rdb, limiter, provClient, logger, worker.PoolSpec{
+		workMgr = worker.NewManager(cfg.AMQPURL, pool, q, rdb, limiter, provClient, metrics, logger, worker.PoolSpec{
 			SMSCount:   cfg.WorkerCountSMS,
 			EmailCount: cfg.WorkerCountEmail,
 			PushCount:  cfg.WorkerCountPush,

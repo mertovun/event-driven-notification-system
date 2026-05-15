@@ -51,6 +51,7 @@ func NewRouter(d Deps) http.Handler {
 	r.Use(CorrelationID)
 	r.Use(WithLogger(d.Logger))
 	r.Use(AccessLog)
+	r.Use(MetricsMiddleware(d.Metrics))
 	r.Use(Recoverer)
 
 	// Operational endpoints — no auth, no body-size limit (they receive nothing).
