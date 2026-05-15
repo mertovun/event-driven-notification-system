@@ -21,6 +21,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mertovun/event-driven-notification-system/internal/config"
+	"github.com/mertovun/event-driven-notification-system/internal/store"
 )
 
 // Injected via -ldflags at build time.
@@ -33,6 +34,7 @@ var (
 func main() {
 	modeFlag := flag.String("mode", "", "run mode: api | worker | all (overrides MODE env)")
 	addrFlag := flag.String("addr", "", "HTTP listen address (overrides HTTP_ADDR env)")
+	skipMigrate := flag.Bool("skip-migrate", false, "skip running migrations on boot")
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -61,17 +63,25 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	if err := run(ctx, cfg, logger); err != nil {
+	if err := run(ctx, cfg, logger, *skipMigrate); err != nil {
 		logger.Error("fatal", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrate bool) error {
 	switch cfg.Mode {
 	case "api", "worker", "all":
 	default:
 		return fmt.Errorf("invalid mode %q (want api | worker | all)", cfg.Mode)
+	}
+
+	if skipMigrate {
+		logger.Warn("migrations skipped via --skip-migrate flag")
+	} else {
+		if err := store.Migrate(cfg.DatabaseURL, logger); err != nil {
+			return fmt.Errorf("migrate: %w", err)
+		}
 	}
 
 	srv := newHTTPServer(cfg.HTTPAddr, logger)
