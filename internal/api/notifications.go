@@ -16,34 +16,39 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
 	"github.com/mertovun/event-driven-notification-system/internal/notification"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
+	tmpl "github.com/mertovun/event-driven-notification-system/internal/template"
 )
 
 // notificationCreateRequest mirrors the JSON request body for POST /v1/notifications.
-// Shape A: raw content. Shape B (templated) lands in step 2.8.
+// Two shapes are valid: raw `content`, OR `template_id` + `variables`. See docs/01 §4.1.
 type notificationCreateRequest struct {
 	Channel     notification.Channel  `json:"channel"`
 	Recipient   string                `json:"recipient"`
-	Content     string                `json:"content"`
+	Content     string                `json:"content,omitempty"`
+	TemplateID  *uuid.UUID            `json:"template_id,omitempty"`
+	Variables   map[string]any        `json:"variables,omitempty"`
 	Priority    notification.Priority `json:"priority"`
 	ScheduledAt *time.Time            `json:"scheduled_at,omitempty"`
 }
 
 // notificationResponse is the canonical response body for create + get.
 type notificationResponse struct {
-	ID            uuid.UUID             `json:"id"`
-	BatchID       *uuid.UUID            `json:"batch_id"`
-	Channel       notification.Channel  `json:"channel"`
-	Recipient     string                `json:"recipient"`
-	Content       string                `json:"content"`
-	Priority      notification.Priority `json:"priority"`
-	Status        notification.Status   `json:"status"`
-	AttemptCount  int32                 `json:"attempt_count"`
-	LastError     *string               `json:"last_error,omitempty"`
-	ScheduledAt   *time.Time            `json:"scheduled_at,omitempty"`
-	CreatedAt     time.Time             `json:"created_at"`
-	UpdatedAt     time.Time             `json:"updated_at"`
-	SentAt        *time.Time            `json:"sent_at,omitempty"`
-	CorrelationID string                `json:"correlation_id"`
+	ID              uuid.UUID             `json:"id"`
+	BatchID         *uuid.UUID            `json:"batch_id"`
+	Channel         notification.Channel  `json:"channel"`
+	Recipient       string                `json:"recipient"`
+	Content         string                `json:"content"`
+	TemplateID      *uuid.UUID            `json:"template_id,omitempty"`
+	TemplateVersion *int32                `json:"template_version,omitempty"`
+	Priority        notification.Priority `json:"priority"`
+	Status          notification.Status   `json:"status"`
+	AttemptCount    int32                 `json:"attempt_count"`
+	LastError       *string               `json:"last_error,omitempty"`
+	ScheduledAt     *time.Time            `json:"scheduled_at,omitempty"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       time.Time             `json:"updated_at"`
+	SentAt          *time.Time            `json:"sent_at,omitempty"`
+	CorrelationID   string                `json:"correlation_id"`
 }
 
 // notificationsHandler holds the deps the resource handlers need.
@@ -81,6 +86,45 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 	if fe := validateCreate(req); len(fe) > 0 {
 		WriteValidationProblem(w, r, fe)
 		return
+	}
+
+	// Shape B: resolve template + render at create time. See docs/12 §3.
+	// We mutate req.Content in place so the rest of the handler treats this as Shape A.
+	var templateVersion *int32
+	if req.TemplateID != nil {
+		row, err := h.q.GetTemplateByID(r.Context(), *req.TemplateID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				WriteErrorAsProblem(w, r, notification.ErrTemplateNotFound)
+				return
+			}
+			WriteErrorAsProblem(w, r, fmt.Errorf("get template: %w", err))
+			return
+		}
+		if row.DeprecatedAt.Valid {
+			WriteValidationProblem(w, r, []FieldError{{Field: "template_id", Message: "template is deprecated"}})
+			return
+		}
+		if missing := tmpl.CheckRequired(row.RequiredVars, req.Variables); len(missing) > 0 {
+			fe := make([]FieldError, 0, len(missing))
+			for _, m := range missing {
+				fe = append(fe, FieldError{Field: "variables." + m, Message: "missing required variable"})
+			}
+			WriteValidationProblem(w, r, fe)
+			return
+		}
+		rendered, err := tmpl.Render(row.Body, req.Variables)
+		if err != nil {
+			WriteValidationProblem(w, r, []FieldError{{Field: "variables", Message: err.Error()}})
+			return
+		}
+		// Channel-specific length check on rendered content.
+		if fe := validateContent(req.Channel, rendered); len(fe) > 0 {
+			WriteValidationProblem(w, r, fe)
+			return
+		}
+		req.Content = rendered
+		templateVersion = &row.Version
 	}
 
 	corrID := CorrelationIDFrom(r.Context())
@@ -124,7 +168,7 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	resp, status, err := h.persist(r.Context(), req, idemKey, corrID)
+	resp, status, err := h.persist(r.Context(), req, idemKey, corrID, templateVersion)
 	if err != nil {
 		if idemKey != "" {
 			_ = h.idem.Release(r.Context(), idemKey)
@@ -160,6 +204,7 @@ func (h *notificationsHandler) persist(
 	ctx context.Context,
 	req notificationCreateRequest,
 	idemKey, corrID string,
+	templateVersion *int32,
 ) (notificationResponse, int, error) {
 	id := uuid.Must(uuid.NewV7())
 	priorityInt := req.Priority.Int16()
@@ -178,6 +223,11 @@ func (h *notificationsHandler) persist(
 
 	qtx := h.q.WithTx(tx)
 
+	var tplID uuid.NullUUID
+	if req.TemplateID != nil {
+		tplID = uuid.NullUUID{UUID: *req.TemplateID, Valid: true}
+	}
+
 	row, err := qtx.InsertNotification(ctx, gen.InsertNotificationParams{
 		ID:              id,
 		BatchID:         uuid.NullUUID{},
@@ -189,8 +239,8 @@ func (h *notificationsHandler) persist(
 		IdempotencyKey:  nullableString(idemKey),
 		ScheduledAt:     schedAt,
 		CorrelationID:   corrID,
-		TemplateID:      uuid.NullUUID{},
-		TemplateVersion: nil,
+		TemplateID:      tplID,
+		TemplateVersion: templateVersion,
 	})
 	if err != nil {
 		return notificationResponse{}, 0, fmt.Errorf("insert notification: %w", err)
@@ -235,7 +285,11 @@ func (h *notificationsHandler) persist(
 	return rowToResponse(row), http.StatusCreated, nil
 }
 
-// validateCreate runs the per-field checks for shape A (raw content).
+// validateCreate runs per-field checks. Enforces the oneOf:
+// exactly one of (content) OR (template_id + variables) must be supplied.
+// Channel-specific content length validation runs on the *rendered* content
+// (which is the raw content if shape A, or the rendered template if shape B —
+// caller has rendered before calling this when shape B is in use).
 func validateCreate(req notificationCreateRequest) []FieldError {
 	var out []FieldError
 	if !req.Channel.Valid() {
@@ -243,7 +297,16 @@ func validateCreate(req notificationCreateRequest) []FieldError {
 		return out
 	}
 	out = append(out, validateRecipient(req.Channel, req.Recipient)...)
-	out = append(out, validateContent(req.Channel, req.Content)...)
+
+	switch {
+	case req.Content != "" && req.TemplateID != nil:
+		out = append(out, FieldError{Field: "content", Message: "must not be set when template_id is provided"})
+	case req.Content == "" && req.TemplateID == nil:
+		out = append(out, FieldError{Field: "content", Message: "must be set when template_id is not provided"})
+	case req.Content != "":
+		out = append(out, validateContent(req.Channel, req.Content)...)
+	}
+
 	if !req.Priority.Valid() {
 		out = append(out, FieldError{Field: "priority", Message: "must be high | normal | low"})
 	}
@@ -272,6 +335,14 @@ func rowToResponse(row gen.Notification) notificationResponse {
 	if row.BatchID.Valid {
 		b := row.BatchID.UUID
 		resp.BatchID = &b
+	}
+	if row.TemplateID.Valid {
+		t := row.TemplateID.UUID
+		resp.TemplateID = &t
+	}
+	if row.TemplateVersion != nil {
+		v := *row.TemplateVersion
+		resp.TemplateVersion = &v
 	}
 	if row.LastError != nil {
 		le := *row.LastError
