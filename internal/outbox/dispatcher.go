@@ -1,0 +1,203 @@
+// Package outbox implements the transactional outbox dispatcher (claim+publish loop).
+// See docs/11-transactional-outbox.md.
+package outbox
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/mertovun/event-driven-notification-system/internal/queue"
+	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
+)
+
+// Config tunes the dispatcher. See docs/11 §8.
+type Config struct {
+	PollInterval time.Duration
+	BatchSize    int
+	ClaimTTL     time.Duration
+	MaxAttempts  int
+	DispatcherID string // identifies this process (UUIDv7 per boot)
+}
+
+// Default returns a Config matching docs/11 §8 starting values.
+func Default(dispatcherID string) Config {
+	return Config{
+		PollInterval: 250 * time.Millisecond,
+		BatchSize:    50,
+		ClaimTTL:     60 * time.Second,
+		MaxAttempts:  10,
+		DispatcherID: dispatcherID,
+	}
+}
+
+// Dispatcher claims unpublished outbox rows and publishes them to RabbitMQ.
+type Dispatcher struct {
+	cfg    Config
+	pool   *pgxpool.Pool
+	q      *gen.Queries
+	pub    *queue.Publisher
+	logger *slog.Logger
+}
+
+func New(pool *pgxpool.Pool, q *gen.Queries, pub *queue.Publisher, logger *slog.Logger, cfg Config) *Dispatcher {
+	return &Dispatcher{cfg: cfg, pool: pool, q: q, pub: pub, logger: logger}
+}
+
+// Run loops until ctx is cancelled. One claim cycle per tick.
+// Errors during a tick log and continue; nothing fatal unless ctx is done.
+func (d *Dispatcher) Run(ctx context.Context) error {
+	d.logger.Info("outbox dispatcher started",
+		"poll", d.cfg.PollInterval,
+		"batch", d.cfg.BatchSize,
+		"claim_ttl", d.cfg.ClaimTTL,
+	)
+	ticker := time.NewTicker(d.cfg.PollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			d.logger.Info("outbox dispatcher stopping")
+			return nil
+		case <-ticker.C:
+			if err := d.tick(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				d.logger.Error("outbox tick failed", "err", err)
+			}
+		}
+	}
+}
+
+// tick claims a batch, publishes each row, and marks success / failure.
+func (d *Dispatcher) tick(ctx context.Context) error {
+	dispID := d.cfg.DispatcherID
+	rows, err := d.q.ClaimOutboxBatch(ctx, gen.ClaimOutboxBatchParams{
+		ClaimTtlSeconds: int32(d.cfg.ClaimTTL.Seconds()),
+		BatchSize:       int32(d.cfg.BatchSize),
+		ClaimedBy:       &dispID,
+	})
+	if err != nil {
+		return fmt.Errorf("claim batch: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+
+	d.logger.Debug("outbox claimed batch", "count", len(rows))
+	for _, row := range rows {
+		d.publishRow(ctx, row)
+	}
+	return nil
+}
+
+func (d *Dispatcher) publishRow(ctx context.Context, row gen.Outbox) {
+	// Decode headers JSONB → map[string]any.
+	hdrs := map[string]any{}
+	if len(row.Headers) > 0 {
+		if err := json.Unmarshal(row.Headers, &hdrs); err != nil {
+			d.logger.Warn("outbox row headers malformed; publishing without headers",
+				"id", row.ID, "err", err)
+			hdrs = map[string]any{}
+		}
+	}
+
+	// Priority comes off the smallint column; AMQP carries an uint8.
+	priority := uint8(row.Priority)
+	if priority > 9 {
+		priority = 9
+	}
+
+	msg := queue.PublishMessage{
+		RoutingKey: row.RoutingKey,
+		Payload:    row.Payload,
+		Headers:    hdrs,
+		Priority:   priority,
+	}
+
+	if err := d.pub.Publish(ctx, msg); err != nil {
+		d.markFailure(ctx, row, err)
+		return
+	}
+
+	if err := d.q.MarkOutboxPublished(ctx, row.ID); err != nil {
+		d.logger.Error("outbox mark published failed", "id", row.ID, "err", err)
+		// Not fatal — the message will be re-published on the next claim cycle.
+		// Worker-side idempotency layers (see docs/04 §7) protect against dupes.
+		return
+	}
+
+	// Best-effort transition notifications.status pending → queued so the listing API reflects reality.
+	notifID, perr := uuid.Parse(extractNotificationID(row.Payload))
+	if perr == nil {
+		if _, mqErr := d.q.MarkQueued(ctx, notifID); mqErr != nil {
+			d.logger.Debug("mark queued non-fatal", "id", notifID, "err", mqErr)
+		}
+	}
+}
+
+func (d *Dispatcher) markFailure(ctx context.Context, row gen.Outbox, pubErr error) {
+	attempts := row.AttemptCount + 1
+	d.logger.Warn("outbox publish failed", "id", row.ID, "attempts", attempts, "err", pubErr)
+
+	if int(attempts) >= d.cfg.MaxAttempts {
+		// Terminal: move the underlying notification to dead_letter and stop retrying.
+		notifID, perr := uuid.Parse(extractNotificationID(row.Payload))
+		if perr == nil {
+			errMsg := pubErr.Error()
+			if _, err := d.q.MarkDeadLetter(ctx, gen.MarkDeadLetterParams{
+				ID:        notifID,
+				LastError: &errMsg,
+			}); err != nil {
+				d.logger.Error("mark dead_letter failed", "id", notifID, "err", err)
+			}
+			if _, err := d.q.InsertDeadLetter(ctx, gen.InsertDeadLetterParams{
+				NotificationID: notifID,
+				Reason:         truncate(pubErr.Error(), 500),
+				Payload:        row.Payload,
+			}); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				d.logger.Error("insert dead_letter failed", "id", notifID, "err", err)
+			}
+		}
+		// Mark the outbox row as published-with-zero-route so it's not retried.
+		// Simpler than a dedicated `dead_outbox` table — see docs/11 §13 Open Questions.
+		if err := d.q.MarkOutboxPublished(ctx, row.ID); err != nil {
+			d.logger.Error("mark outbox terminated failed", "id", row.ID, "err", err)
+		}
+		return
+	}
+
+	// Retryable: increment attempt and clear claim so next cycle picks it up.
+	errMsg := truncate(pubErr.Error(), 1024)
+	if err := d.q.MarkOutboxFailed(ctx, gen.MarkOutboxFailedParams{
+		ID:        row.ID,
+		LastError: &errMsg,
+	}); err != nil {
+		d.logger.Error("mark outbox failed update", "id", row.ID, "err", err)
+	}
+}
+
+// extractNotificationID pulls the notification_id field out of the JSONB payload
+// without a full struct. Returns "" if not present.
+func extractNotificationID(payload []byte) string {
+	var env struct {
+		NotificationID string `json:"notification_id"`
+	}
+	if err := json.Unmarshal(payload, &env); err != nil {
+		return ""
+	}
+	return env.NotificationID
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
+}

@@ -16,12 +16,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mertovun/event-driven-notification-system/internal/api"
 	"github.com/mertovun/event-driven-notification-system/internal/config"
 	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
+	"github.com/mertovun/event-driven-notification-system/internal/outbox"
+	"github.com/mertovun/event-driven-notification-system/internal/queue"
 	"github.com/mertovun/event-driven-notification-system/internal/store"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 )
@@ -131,7 +134,29 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	})
 	srv := newHTTPServer(cfg.HTTPAddr, logger, router)
 
+	// Queue publisher + outbox dispatcher run in worker / all mode.
+	var pub *queue.Publisher
+	var disp *outbox.Dispatcher
+	if cfg.Mode == "worker" || cfg.Mode == "all" {
+		var err error
+		pub, err = queue.NewPublisher(ctx, cfg.AMQPURL, logger)
+		if err != nil {
+			return fmt.Errorf("amqp publisher: %w", err)
+		}
+		defer func() { _ = pub.Close() }()
+
+		dispID, _ := uuid.NewV7()
+		cfgD := outbox.Default(dispID.String())
+		cfgD.PollInterval = cfg.OutboxPollInterval
+		cfgD.BatchSize = cfg.OutboxBatchSize
+		disp = outbox.New(pool, q, pub, logger, cfgD)
+	}
+
 	g, gctx := errgroup.WithContext(ctx)
+
+	if disp != nil {
+		g.Go(func() error { return disp.Run(gctx) })
+	}
 
 	g.Go(func() error {
 		logger.Info("http server listening", "addr", cfg.HTTPAddr)
