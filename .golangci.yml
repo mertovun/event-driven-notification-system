@@ -1,0 +1,70 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - revive
+    - gocritic
+    - gosec
+    - bodyclose
+    - errorlint
+    - noctx
+    - gocyclo
+    - misspell
+    - unconvert
+    - unparam
+    - prealloc
+    - nakedret
+    - depguard
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  goimports:
+    local-prefixes: github.com/mertovun/event-driven-notification-system
+  revive:
+    rules:
+      - name: var-naming
+      - name: exported
+      - name: indent-error-flow
+      - name: error-return
+      - name: error-naming
+      - name: receiver-naming
+      - name: unused-parameter
+  depguard:
+    rules:
+      domain-stays-clean:
+        files:
+          - "**/internal/notification/**"
+        deny:
+          - pkg: "net/http"
+            desc: "domain must not depend on transport"
+          - pkg: "github.com/go-chi/chi"
+            desc: "domain must not depend on HTTP router"
+          - pkg: "github.com/jackc/pgx"
+            desc: "domain must not depend on the database driver"
+          - pkg: "github.com/rabbitmq/amqp091-go"
+            desc: "domain must not depend on the message broker"
+          - pkg: "github.com/redis/go-redis"
+            desc: "domain must not depend on Redis"
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - gosec
+        - errcheck
+        - unparam
+  max-same-issues: 0
+  max-issues-per-linter: 0
