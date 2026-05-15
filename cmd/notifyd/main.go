@@ -58,7 +58,8 @@ func main() {
 		cfg.HTTPAddr = *addrFlag
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: parseLogLevel(cfg.LogLevel)}))
+	base := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: parseLogLevel(cfg.LogLevel)})
+	logger := slog.New(observability.WrapHandler(base))
 	slog.SetDefault(logger)
 
 	logger.Info("starting notifyd",
