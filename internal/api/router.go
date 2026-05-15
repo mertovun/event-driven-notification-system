@@ -48,6 +48,10 @@ func NewRouter(d Deps) http.Handler {
 	r.Get("/readyz", readyzHandler(d.Pool))
 	r.Get("/version", versionHandler(d.BuildInfo))
 
+	// API spec + Swagger UI — no auth so reviewers can browse without a key.
+	r.Get("/openapi.yaml", openAPIHandler)
+	r.Get("/docs", swaggerHandler)
+
 	notifH := newNotificationsHandler(d, d.Idempotency)
 	tmplH := newTemplatesHandler(d)
 

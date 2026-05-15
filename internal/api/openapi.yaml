@@ -1,0 +1,449 @@
+openapi: 3.1.0
+info:
+  title: Event-Driven Notification System API
+  version: 0.1.0
+  description: |
+    HTTP API for the Insider notification system. Submit notifications by channel
+    (sms / email / push), monitor delivery, manage templates and admin actions.
+
+    Authentication: `Authorization: Bearer <api_key>`.
+
+    Error format: RFC 7807 Problem Details (`application/problem+json`).
+    Idempotency: send `Idempotency-Key: <opaque>` on writes; replays return the
+    canonical original response with `Idempotency-Replayed: true`.
+
+servers:
+  - url: http://localhost:8090
+    description: Local docker-compose stack
+
+security:
+  - BearerAuth: []
+
+paths:
+  /v1/notifications:
+    post:
+      summary: Create a single notification
+      tags: [Notifications]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XRequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Notification' } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    get:
+      summary: List notifications with cursor pagination + filters
+      tags: [Notifications]
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/NotificationStatus' }
+        - in: query
+          name: channel
+          schema: { $ref: '#/components/schemas/Channel' }
+        - in: query
+          name: batch_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: created_after
+          schema: { type: string, format: date-time }
+        - in: query
+          name: created_before
+          schema: { type: string, format: date-time }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/NotificationPage' } }
+
+  /v1/notifications/batch:
+    post:
+      summary: Create a batch (up to 1000 items)
+      tags: [Notifications]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchCreate' }
+      responses:
+        '201':
+          description: All items accepted
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/BatchCreateResponse' } }
+        '207':
+          description: Partial — some items rejected by validation
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/BatchCreateResponse' } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/notifications/{id}:
+    get:
+      summary: Get a single notification
+      tags: [Notifications]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Notification' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      summary: Cancel a pending / queued / scheduled notification
+      tags: [Notifications]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Cancelled
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Notification' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/InvalidState' }
+
+  /v1/notifications/batch/{batchId}:
+    get:
+      summary: Get a batch and its items
+      tags: [Notifications]
+      parameters:
+        - in: path
+          name: batchId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/BatchDetail' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/templates:
+    post:
+      summary: Create a template
+      tags: [Templates]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplateCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Template' } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+    get:
+      summary: List active templates
+      tags: [Templates]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Template' }
+
+  /v1/templates/{id}:
+    get:
+      summary: Get a template (includes deprecated)
+      tags: [Templates]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Template' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Update template body (bumps version)
+      tags: [Templates]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Template' } }
+    delete:
+      summary: Soft-deprecate a template
+      tags: [Templates]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Deprecated }
+
+  /livez:
+    get:
+      summary: Liveness probe (process alive)
+      tags: [Operational]
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain: { schema: { type: string, example: "ok" } }
+
+  /readyz:
+    get:
+      summary: Readiness probe (dependencies reachable)
+      tags: [Operational]
+      security: []
+      responses:
+        '200':
+          description: All dependencies reachable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  checks: { type: object, additionalProperties: { type: string } }
+        '503':
+          description: One or more dependencies unreachable
+
+  /version:
+    get:
+      summary: Build metadata
+      tags: [Operational]
+      security: []
+      responses:
+        '200':
+          description: OK
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+  parameters:
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      schema: { type: string, maxLength: 255 }
+      description: Opaque key; identical body within 24h replays the original response.
+    XRequestID:
+      in: header
+      name: X-Request-Id
+      schema: { type: string }
+      description: Client-supplied correlation ID; auto-generated (UUIDv7) if absent.
+
+  schemas:
+    Channel:
+      type: string
+      enum: [sms, email, push]
+
+    Priority:
+      type: string
+      enum: [high, normal, low]
+      default: normal
+
+    NotificationStatus:
+      type: string
+      enum: [pending, scheduled, queued, sending, sent, failed, cancelled, dead_letter]
+
+    NotificationCreate:
+      oneOf:
+        - $ref: '#/components/schemas/NotificationCreateRaw'
+        - $ref: '#/components/schemas/NotificationCreateTemplated'
+
+    NotificationCreateRaw:
+      type: object
+      required: [channel, recipient, content]
+      properties:
+        channel: { $ref: '#/components/schemas/Channel' }
+        recipient: { type: string, minLength: 1, maxLength: 512 }
+        content: { type: string, minLength: 1 }
+        priority: { $ref: '#/components/schemas/Priority' }
+        scheduled_at: { type: string, format: date-time, nullable: true }
+
+    NotificationCreateTemplated:
+      type: object
+      required: [channel, recipient, template_id, variables]
+      properties:
+        channel: { $ref: '#/components/schemas/Channel' }
+        recipient: { type: string, minLength: 1, maxLength: 512 }
+        template_id: { type: string, format: uuid }
+        variables:
+          type: object
+          additionalProperties: true
+        priority: { $ref: '#/components/schemas/Priority' }
+        scheduled_at: { type: string, format: date-time, nullable: true }
+
+    Notification:
+      type: object
+      required: [id, channel, recipient, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid, nullable: true }
+        channel: { $ref: '#/components/schemas/Channel' }
+        recipient: { type: string }
+        content: { type: string }
+        template_id: { type: string, format: uuid, nullable: true }
+        template_version: { type: integer, nullable: true }
+        priority: { $ref: '#/components/schemas/Priority' }
+        status: { $ref: '#/components/schemas/NotificationStatus' }
+        attempt_count: { type: integer }
+        last_error: { type: string, nullable: true }
+        scheduled_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        sent_at: { type: string, format: date-time, nullable: true }
+        correlation_id: { type: string }
+
+    NotificationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Notification' }
+        next_cursor: { type: string, nullable: true }
+        has_more: { type: boolean }
+
+    BatchCreate:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/NotificationCreate' }
+
+    BatchItemResult:
+      type: object
+      properties:
+        index: { type: integer }
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/NotificationStatus' }
+        error: { $ref: '#/components/schemas/Problem' }
+
+    BatchCreateResponse:
+      type: object
+      properties:
+        batch_id: { type: string, format: uuid }
+        status: { type: string, enum: [accepted, partial, rejected] }
+        total_count: { type: integer }
+        accepted_count: { type: integer }
+        rejected_count: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/BatchItemResult' }
+
+    BatchDetail:
+      type: object
+      properties:
+        batch:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string }
+            total_count: { type: integer }
+            accepted_count: { type: integer }
+            rejected_count: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Notification' }
+
+    TemplateCreate:
+      type: object
+      required: [name, channel, body]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        channel: { $ref: '#/components/schemas/Channel' }
+        body: { type: string }
+
+    Template:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        channel: { $ref: '#/components/schemas/Channel' }
+        version: { type: integer }
+        body: { type: string }
+        required_vars:
+          type: array
+          items: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deprecated_at: { type: string, format: date-time, nullable: true }
+
+    Problem:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content:
+        application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } }
+    ValidationError:
+      description: One or more fields failed validation
+      content:
+        application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } }
+    IdempotencyConflict:
+      description: Idempotency-Key reused with a different body
+      content:
+        application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } }
+    InvalidState:
+      description: Operation not allowed from the resource's current state
+      content:
+        application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } }
