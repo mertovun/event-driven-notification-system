@@ -105,9 +105,20 @@ type HTTPClient struct {
 	userAgent string
 }
 
-// New builds the hardened client. Endpoint is the configured WEBHOOK_URL.
-// Caller should pass the *single* process-wide value from config.
+// Options tweaks the client builder. Zero value matches production defaults
+// (SSRF guard ON). Tests can flip AllowPrivateAddresses to call into httptest.Server.
+type Options struct {
+	AllowPrivateAddresses bool
+}
+
+// New builds the hardened client with production defaults.
 func New(endpoint, userAgent string) (*HTTPClient, error) {
+	return NewWithOptions(endpoint, userAgent, Options{})
+}
+
+// NewWithOptions builds the client with explicit options. Same as New but lets
+// tests disable the SSRF guard for httptest.Server URLs (which bind to 127.0.0.1).
+func NewWithOptions(endpoint, userAgent string, opts Options) (*HTTPClient, error) {
 	if endpoint == "" {
 		return nil, errors.New("provider: endpoint required")
 	}
@@ -127,6 +138,9 @@ func New(endpoint, userAgent string) (*HTTPClient, error) {
 		// Control hook so reviewers see the pattern and it works defensively if the
 		// URL host ever resolves to a private/metadata range.
 		Control: ssrfControl,
+	}
+	if opts.AllowPrivateAddresses {
+		dialer.Control = nil
 	}
 	transport := &http.Transport{
 		DialContext:           dialer.DialContext,

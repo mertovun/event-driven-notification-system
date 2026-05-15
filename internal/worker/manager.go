@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -27,6 +28,7 @@ type Manager struct {
 	logger  *slog.Logger
 	counts  map[string]int // channel → worker count
 
+	mu        sync.Mutex
 	consumers []*queue.Consumer
 }
 
@@ -91,7 +93,9 @@ func (m *Manager) Run(ctx context.Context) error {
 				if err != nil {
 					return fmt.Errorf("worker %s consumer: %w", workerName, err)
 				}
-				m.consumers = append(m.consumers, cons) // best-effort tracking
+				m.mu.Lock()
+				m.consumers = append(m.consumers, cons)
+				m.mu.Unlock()
 				defer func() { _ = cons.Close() }()
 				return cons.Run(gctx, pipe.Handle)
 			})
