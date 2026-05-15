@@ -173,6 +173,20 @@ func (p *Publisher) Publish(ctx context.Context, m PublishMessage) error {
 	return nil
 }
 
+// Ping returns nil if the AMQP connection is alive and the channel is open.
+// Lightweight: does not write to the broker.
+func (p *Publisher) Ping(_ context.Context) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.conn == nil || p.conn.IsClosed() {
+		return errors.New("amqp connection closed")
+	}
+	if p.channel == nil {
+		return errors.New("amqp channel nil")
+	}
+	return nil
+}
+
 // Close shuts down the channel and connection. Idempotent.
 func (p *Publisher) Close() error {
 	var err error

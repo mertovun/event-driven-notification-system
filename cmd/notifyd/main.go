@@ -124,17 +124,8 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		logger.Info("dev api key seeded", "prefix", cfg.DevAPIKey[:8])
 	}
 
-	router := api.NewRouter(api.Deps{
-		Pool:        pool,
-		Queries:     q,
-		Idempotency: idemStore,
-		Redis:       rdb,
-		Logger:      logger,
-		BuildInfo:   api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
-	})
-	srv := newHTTPServer(cfg.HTTPAddr, logger, router)
-
 	// Queue publisher + outbox dispatcher run in worker / all mode.
+	// Build it before the router so /readyz can include it in the checks.
 	var pub *queue.Publisher
 	var disp *outbox.Dispatcher
 	if cfg.Mode == "worker" || cfg.Mode == "all" {
@@ -151,6 +142,17 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		cfgD.BatchSize = cfg.OutboxBatchSize
 		disp = outbox.New(pool, q, pub, logger, cfgD)
 	}
+
+	router := api.NewRouter(api.Deps{
+		Pool:        pool,
+		Queries:     q,
+		Idempotency: idemStore,
+		Redis:       rdb,
+		AMQP:        amqpChecker(pub),
+		Logger:      logger,
+		BuildInfo:   api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
+	})
+	srv := newHTTPServer(cfg.HTTPAddr, logger, router)
 
 	g, gctx := errgroup.WithContext(ctx)
 
@@ -187,6 +189,15 @@ func newHTTPServer(addr string, logger *slog.Logger, handler http.Handler) *http
 		IdleTimeout:       120 * time.Second,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
+}
+
+// amqpChecker returns nil interface when publisher is nil so /readyz omits the check.
+// Otherwise wraps the publisher into the api.AMQPHealthChecker contract.
+func amqpChecker(pub *queue.Publisher) api.AMQPHealthChecker {
+	if pub == nil {
+		return nil
+	}
+	return pub
 }
 
 func parseLogLevel(s string) slog.Level {

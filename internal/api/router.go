@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -22,12 +23,19 @@ type BuildInfo struct {
 	BuildTime string `json:"build_time"`
 }
 
+// AMQPHealthChecker is the readiness contract for the AMQP layer.
+// Implemented by *queue.Publisher; satisfied by nil for the api-only mode.
+type AMQPHealthChecker interface {
+	Ping(ctx context.Context) error
+}
+
 // Deps holds the dependencies handlers need. Wired in main; passed to NewRouter.
 type Deps struct {
 	Pool        *pgxpool.Pool
 	Queries     *gen.Queries
 	Idempotency *idempotency.Store
 	Redis       *redis.Client
+	AMQP        AMQPHealthChecker
 	Logger      *slog.Logger
 	BuildInfo   BuildInfo
 }
@@ -45,7 +53,7 @@ func NewRouter(d Deps) http.Handler {
 
 	// Operational endpoints — no auth, no body-size limit (they receive nothing).
 	r.Get("/livez", livezHandler)
-	r.Get("/readyz", readyzHandler(d.Pool))
+	r.Get("/readyz", readyzHandler(d))
 	r.Get("/version", versionHandler(d.BuildInfo))
 
 	// API spec + Swagger UI — no auth so reviewers can browse without a key.
@@ -92,25 +100,45 @@ func livezHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 // readyzHandler returns a JSON breakdown of dependency health.
-// 200 only when every dependency check passes; 503 otherwise. See docs/06-observability.md §6.
-func readyzHandler(pool *pgxpool.Pool) http.HandlerFunc {
+// 200 only when every wired dependency passes its check; 503 otherwise.
+// See docs/06-observability.md §6.
+func readyzHandler(d Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		// Per-check budget; do not let a slow dep block /readyz.
-		// Total handler budget is bounded by the chi+server timeouts above.
-		checks := map[string]string{"postgres": "ok"}
+		checks := map[string]string{}
 		ok := true
 
-		if pool != nil {
+		if d.Pool != nil {
 			pingCtx, cancel := contextWithTimeout(ctx, time.Second)
-			defer cancel()
-			if err := pool.Ping(pingCtx); err != nil {
+			if err := d.Pool.Ping(pingCtx); err != nil {
 				checks["postgres"] = "unreachable: " + err.Error()
 				ok = false
+			} else {
+				checks["postgres"] = "ok"
 			}
-		} else {
-			checks["postgres"] = "not configured"
-			ok = false
+			cancel()
+		}
+
+		if d.Redis != nil {
+			pingCtx, cancel := contextWithTimeout(ctx, time.Second)
+			if err := d.Redis.Ping(pingCtx).Err(); err != nil {
+				checks["redis"] = "unreachable: " + err.Error()
+				ok = false
+			} else {
+				checks["redis"] = "ok"
+			}
+			cancel()
+		}
+
+		if d.AMQP != nil {
+			pingCtx, cancel := contextWithTimeout(ctx, time.Second)
+			if err := d.AMQP.Ping(pingCtx); err != nil {
+				checks["rabbitmq"] = "unreachable: " + err.Error()
+				ok = false
+			} else {
+				checks["rabbitmq"] = "ok"
+			}
+			cancel()
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -125,6 +153,9 @@ func readyzHandler(pool *pgxpool.Pool) http.HandlerFunc {
 		})
 	}
 }
+
+// Avoid an unused-import warning on `context` if the handler isn't using it directly.
+var _ = context.TODO
 
 func versionHandler(bi BuildInfo) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
