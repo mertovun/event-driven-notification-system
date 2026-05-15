@@ -49,6 +49,7 @@ func NewRouter(d Deps) http.Handler {
 	r.Get("/version", versionHandler(d.BuildInfo))
 
 	notifH := newNotificationsHandler(d, d.Idempotency)
+	tmplH := newTemplatesHandler(d)
 
 	// V1 resource routes — auth, body-size limit, then resource handlers.
 	r.Route("/v1", func(api chi.Router) {
@@ -64,6 +65,15 @@ func NewRouter(d Deps) http.Handler {
 			n.With(RequireScope(ScopeRead)).Get("/{id}", notifH.get)
 			n.With(RequireScope(ScopeRead)).Get("/batch/{batchId}", notifH.getByBatch)
 			n.With(RequireScope(ScopeRead)).Get("/", notifH.list)
+		})
+
+		// templates
+		api.Route("/templates", func(t chi.Router) {
+			t.With(RequireScope(ScopeWrite)).Post("/", tmplH.create)
+			t.With(RequireScope(ScopeRead)).Get("/", tmplH.list)
+			t.With(RequireScope(ScopeRead)).Get("/{id}", tmplH.get)
+			t.With(RequireScope(ScopeWrite)).Put("/{id}", tmplH.put)
+			t.With(RequireScope(ScopeWrite)).Delete("/{id}", tmplH.del)
 		})
 	})
 
