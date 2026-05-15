@@ -1,4 +1,4 @@
-.PHONY: help install-hooks fmt vet build test lint up down logs ps
+.PHONY: help install-hooks fmt vet build test lint generate up down logs ps
 
 COMPOSE := docker compose -f deploy/docker-compose.yml --env-file .env
 
@@ -24,6 +24,9 @@ test: ## Run unit tests with race detector
 
 lint: ## Run golangci-lint (requires it to be installed)
 	@golangci-lint run
+
+generate: ## Regenerate sqlc code
+	@sqlc generate
 
 up: ## Start the full stack (postgres, rabbitmq, redis, app)
 	@$(COMPOSE) up -d --build
