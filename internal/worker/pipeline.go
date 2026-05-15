@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/sony/gobreaker"
 
 	"github.com/mertovun/event-driven-notification-system/internal/provider"
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
@@ -42,6 +43,7 @@ type Pipeline struct {
 	rdb      *redis.Client
 	limiter  *ratelimit.Limiter
 	provider *provider.HTTPClient
+	breaker  *gobreaker.CircuitBreaker
 	logger   *slog.Logger
 
 	// Rate-limit settings — 100/s per channel, capacity = 1s burst (docs/04 §2).
@@ -59,6 +61,7 @@ func New(
 	prov *provider.HTTPClient,
 	logger *slog.Logger,
 ) *Pipeline {
+	chanLogger := logger.With("channel", channel)
 	return &Pipeline{
 		channel:         channel,
 		pool:            pool,
@@ -66,7 +69,8 @@ func New(
 		rdb:             rdb,
 		limiter:         limiter,
 		provider:        prov,
-		logger:          logger.With("channel", channel),
+		breaker:         newBreaker(channel, chanLogger),
+		logger:          chanLogger,
 		rateLimitPerSec: 100,
 		rateCapacity:    100,
 	}
@@ -149,13 +153,29 @@ func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 	// (API already validated; worker re-checks for the rare case of in-flight migrations.)
 	// Skipping the explicit re-validation for brevity; the API gate is authoritative.
 
-	// 6) Provider call.
+	// 6) Provider call — wrapped in circuit breaker per channel.
 	attempt := row.AttemptCount + 1
-	provResp, callErr := p.provider.Send(ctx, provider.SendRequest{
-		To:      env.Recipient,
-		Channel: env.Channel,
-		Content: env.Content,
-	}, env.CorrelationID)
+	rawResult, breakerErr := p.breaker.Execute(func() (any, error) {
+		return p.provider.Send(ctx, provider.SendRequest{
+			To:      env.Recipient,
+			Channel: env.Channel,
+			Content: env.Content,
+		}, env.CorrelationID)
+	})
+
+	// If the breaker is open, treat as a retryable failure (not per-message fault).
+	if errors.Is(breakerErr, gobreaker.ErrOpenState) || errors.Is(breakerErr, gobreaker.ErrTooManyRequests) {
+		errStr := breakerErr.Error()
+		_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID, LastError: &errStr})
+		logger.Info("breaker open; revert to queued", "attempt", attempt, "err", breakerErr)
+		return breakerErr
+	}
+
+	var provResp *provider.SendResponse
+	if rawResult != nil {
+		provResp, _ = rawResult.(*provider.SendResponse)
+	}
+	callErr := breakerErr
 
 	now := time.Now()
 	completedAt := pgxTimestamp(now)

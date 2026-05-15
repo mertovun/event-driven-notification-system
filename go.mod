@@ -68,6 +68,7 @@ require (
 	github.com/redis/go-redis/v9 v9.19.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.3 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
+	github.com/sony/gobreaker v1.0.0 // indirect
 	github.com/testcontainers/testcontainers-go/modules/rabbitmq v0.42.0 // indirect
 	github.com/testcontainers/testcontainers-go/modules/redis v0.42.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
