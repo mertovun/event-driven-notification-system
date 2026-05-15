@@ -72,3 +72,12 @@ const (
 	StatusCancelled  Status = "cancelled"
 	StatusDeadLetter Status = "dead_letter"
 )
+
+func (s Status) Valid() bool {
+	switch s {
+	case StatusPending, StatusScheduled, StatusQueued, StatusSending,
+		StatusSent, StatusFailed, StatusCancelled, StatusDeadLetter:
+		return true
+	}
+	return false
+}

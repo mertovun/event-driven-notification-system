@@ -63,6 +63,7 @@ func NewRouter(d Deps) http.Handler {
 			n.With(RequireScope(ScopeWrite)).Delete("/{id}", notifH.cancel)
 			n.With(RequireScope(ScopeRead)).Get("/{id}", notifH.get)
 			n.With(RequireScope(ScopeRead)).Get("/batch/{batchId}", notifH.getByBatch)
+			n.With(RequireScope(ScopeRead)).Get("/", notifH.list)
 		})
 	})
 
