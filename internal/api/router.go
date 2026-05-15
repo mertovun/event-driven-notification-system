@@ -9,6 +9,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 )
 
 // BuildInfo is injected from main via -ldflags. Surfaces at /version.
@@ -21,6 +23,7 @@ type BuildInfo struct {
 // Deps holds the dependencies handlers need. Wired in main; passed to NewRouter.
 type Deps struct {
 	Pool      *pgxpool.Pool
+	Queries   *gen.Queries
 	Logger    *slog.Logger
 	BuildInfo BuildInfo
 }
@@ -41,10 +44,20 @@ func NewRouter(d Deps) http.Handler {
 	r.Get("/readyz", readyzHandler(d.Pool))
 	r.Get("/version", versionHandler(d.BuildInfo))
 
-	// V1 resource routes — applied with the smaller body-size limit by default.
+	// V1 resource routes — auth, body-size limit, then resource handlers.
 	r.Route("/v1", func(api chi.Router) {
 		api.Use(MaxBodyBytes(MaxBodyBytesDefault))
-		// Resource handlers mounted in steps 2.4–2.8.
+		api.Use(AuthMiddleware(d.Queries))
+
+		// Smoke endpoint while real routes are wired in steps 2.4–2.8.
+		// Returns 200 with the authenticated key's name. Remove once real routes land.
+		api.Get("/whoami", func(w http.ResponseWriter, r *http.Request) {
+			k, _ := AuthedKeyFrom(r.Context())
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"name":   k.Name,
+				"scopes": k.Scopes,
+			})
+		})
 	})
 
 	r.NotFound(noStaticFiles)

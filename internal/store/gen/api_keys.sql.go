@@ -12,7 +12,7 @@ import (
 )
 
 const getActiveAPIKeyByHash = `-- name: GetActiveAPIKeyByHash :one
-SELECT id, name, hashed_key, scopes, created_at, revoked_at FROM api_keys
+SELECT id, name, hashed_key, scopes, created_at, revoked_at, key_prefix FROM api_keys
 WHERE hashed_key = $1 AND revoked_at IS NULL
 `
 
@@ -26,24 +26,31 @@ func (q *Queries) GetActiveAPIKeyByHash(ctx context.Context, hashedKey string) (
 		&i.Scopes,
 		&i.CreatedAt,
 		&i.RevokedAt,
+		&i.KeyPrefix,
 	)
 	return i, err
 }
 
 const insertAPIKey = `-- name: InsertAPIKey :one
-INSERT INTO api_keys (name, hashed_key, scopes)
-VALUES ($1, $2, $3)
-RETURNING id, name, hashed_key, scopes, created_at, revoked_at
+INSERT INTO api_keys (name, hashed_key, key_prefix, scopes)
+VALUES ($1, $2, $3, $4)
+RETURNING id, name, hashed_key, scopes, created_at, revoked_at, key_prefix
 `
 
 type InsertAPIKeyParams struct {
 	Name      string   `json:"name"`
 	HashedKey string   `json:"hashed_key"`
+	KeyPrefix string   `json:"key_prefix"`
 	Scopes    []string `json:"scopes"`
 }
 
 func (q *Queries) InsertAPIKey(ctx context.Context, arg InsertAPIKeyParams) (ApiKey, error) {
-	row := q.db.QueryRow(ctx, insertAPIKey, arg.Name, arg.HashedKey, arg.Scopes)
+	row := q.db.QueryRow(ctx, insertAPIKey,
+		arg.Name,
+		arg.HashedKey,
+		arg.KeyPrefix,
+		arg.Scopes,
+	)
 	var i ApiKey
 	err := row.Scan(
 		&i.ID,
@@ -52,8 +59,44 @@ func (q *Queries) InsertAPIKey(ctx context.Context, arg InsertAPIKeyParams) (Api
 		&i.Scopes,
 		&i.CreatedAt,
 		&i.RevokedAt,
+		&i.KeyPrefix,
 	)
 	return i, err
+}
+
+const listActiveAPIKeysByPrefix = `-- name: ListActiveAPIKeysByPrefix :many
+SELECT id, name, hashed_key, scopes, created_at, revoked_at, key_prefix FROM api_keys
+WHERE key_prefix = $1 AND revoked_at IS NULL
+`
+
+// Auth fast-path: candidates whose stored prefix matches the request prefix.
+// The middleware then runs argon2.Verify on each candidate (typically 1).
+func (q *Queries) ListActiveAPIKeysByPrefix(ctx context.Context, keyPrefix string) ([]ApiKey, error) {
+	rows, err := q.db.Query(ctx, listActiveAPIKeysByPrefix, keyPrefix)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ApiKey{}
+	for rows.Next() {
+		var i ApiKey
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.HashedKey,
+			&i.Scopes,
+			&i.CreatedAt,
+			&i.RevokedAt,
+			&i.KeyPrefix,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const revokeAPIKey = `-- name: RevokeAPIKey :exec
@@ -63,4 +106,43 @@ UPDATE api_keys SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL
 func (q *Queries) RevokeAPIKey(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, revokeAPIKey, id)
 	return err
+}
+
+const upsertAPIKey = `-- name: UpsertAPIKey :one
+INSERT INTO api_keys (name, hashed_key, key_prefix, scopes)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (hashed_key) DO UPDATE SET
+    name = EXCLUDED.name,
+    key_prefix = EXCLUDED.key_prefix,
+    scopes = EXCLUDED.scopes,
+    revoked_at = NULL
+RETURNING id, name, hashed_key, scopes, created_at, revoked_at, key_prefix
+`
+
+type UpsertAPIKeyParams struct {
+	Name      string   `json:"name"`
+	HashedKey string   `json:"hashed_key"`
+	KeyPrefix string   `json:"key_prefix"`
+	Scopes    []string `json:"scopes"`
+}
+
+// Idempotent seed for the dev key: insert if absent, update if present.
+func (q *Queries) UpsertAPIKey(ctx context.Context, arg UpsertAPIKeyParams) (ApiKey, error) {
+	row := q.db.QueryRow(ctx, upsertAPIKey,
+		arg.Name,
+		arg.HashedKey,
+		arg.KeyPrefix,
+		arg.Scopes,
+	)
+	var i ApiKey
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.HashedKey,
+		&i.Scopes,
+		&i.CreatedAt,
+		&i.RevokedAt,
+		&i.KeyPrefix,
+	)
+	return i, err
 }

@@ -43,6 +43,9 @@ type Querier interface {
 	InsertOutbox(ctx context.Context, arg InsertOutboxParams) (Outbox, error)
 	InsertScheduled(ctx context.Context, arg InsertScheduledParams) (ScheduledNotification, error)
 	InsertTemplate(ctx context.Context, arg InsertTemplateParams) (Template, error)
+	// Auth fast-path: candidates whose stored prefix matches the request prefix.
+	// The middleware then runs argon2.Verify on each candidate (typically 1).
+	ListActiveAPIKeysByPrefix(ctx context.Context, keyPrefix string) ([]ApiKey, error)
 	ListActiveTemplates(ctx context.Context, pageLimit int32) ([]Template, error)
 	ListDeadLetters(ctx context.Context, arg ListDeadLettersParams) ([]DeadLetter, error)
 	ListRecentAuditEntries(ctx context.Context, pageLimit int32) ([]AdminAudit, error)
@@ -59,6 +62,8 @@ type Querier interface {
 	// Worker retry path: sending → queued (next attempt re-publishes).
 	RevertToQueued(ctx context.Context, arg RevertToQueuedParams) error
 	RevokeAPIKey(ctx context.Context, id uuid.UUID) error
+	// Idempotent seed for the dev key: insert if absent, update if present.
+	UpsertAPIKey(ctx context.Context, arg UpsertAPIKeyParams) (ApiKey, error)
 }
 
 var _ Querier = (*Queries)(nil)

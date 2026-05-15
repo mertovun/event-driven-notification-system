@@ -25,6 +25,7 @@ type ApiKey struct {
 	Scopes    []string           `json:"scopes"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
+	KeyPrefix string             `json:"key_prefix"`
 }
 
 type Batch struct {

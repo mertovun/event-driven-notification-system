@@ -21,6 +21,7 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/api"
 	"github.com/mertovun/event-driven-notification-system/internal/config"
 	"github.com/mertovun/event-driven-notification-system/internal/store"
+	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 )
 
 // Injected via -ldflags at build time.
@@ -90,8 +91,18 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	defer pool.Close()
 	logger.Info("postgres connected", "max_conns", 20)
 
+	q := gen.New(pool)
+
+	if cfg.DevAPIKey != "" {
+		if err := api.SeedDevKey(ctx, q, cfg.DevAPIKey); err != nil {
+			return fmt.Errorf("seed dev api key: %w", err)
+		}
+		logger.Info("dev api key seeded", "prefix", cfg.DevAPIKey[:8])
+	}
+
 	router := api.NewRouter(api.Deps{
 		Pool:      pool,
+		Queries:   q,
 		Logger:    logger,
 		BuildInfo: api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
 	})
