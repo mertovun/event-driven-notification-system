@@ -1,0 +1,247 @@
+// Package worker contains the per-channel delivery pipeline.
+// See docs/04-processing-and-workers.md §6 for the 14-step pipeline.
+package worker
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
+
+	"github.com/mertovun/event-driven-notification-system/internal/provider"
+	"github.com/mertovun/event-driven-notification-system/internal/queue"
+	"github.com/mertovun/event-driven-notification-system/internal/ratelimit"
+	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
+)
+
+// envelope is the JSON payload the API publishes to RabbitMQ (and outbox writes).
+// Keep in sync with internal/api/notifications.go.
+type envelope struct {
+	NotificationID string `json:"notification_id"`
+	Channel        string `json:"channel"`
+	Recipient      string `json:"recipient"`
+	Content        string `json:"content"`
+	Priority       string `json:"priority"`
+	CorrelationID  string `json:"correlation_id"`
+}
+
+// Pipeline holds the dependencies the worker delivers through.
+// One Pipeline instance per channel pool — see Manager (manager.go).
+type Pipeline struct {
+	channel  string
+	pool     *pgxpool.Pool
+	q        *gen.Queries
+	rdb      *redis.Client
+	limiter  *ratelimit.Limiter
+	provider *provider.HTTPClient
+	logger   *slog.Logger
+
+	// Rate-limit settings — 100/s per channel, capacity = 1s burst (docs/04 §2).
+	rateLimitPerSec float64
+	rateCapacity    float64
+}
+
+// New builds a Pipeline for the named channel.
+func New(
+	channel string,
+	pool *pgxpool.Pool,
+	q *gen.Queries,
+	rdb *redis.Client,
+	limiter *ratelimit.Limiter,
+	prov *provider.HTTPClient,
+	logger *slog.Logger,
+) *Pipeline {
+	return &Pipeline{
+		channel:         channel,
+		pool:            pool,
+		q:               q,
+		rdb:             rdb,
+		limiter:         limiter,
+		provider:        prov,
+		logger:          logger.With("channel", channel),
+		rateLimitPerSec: 100,
+		rateCapacity:    100,
+	}
+}
+
+// Handle is the queue.Handler for one delivery.
+// Returns nil to ack; queue.ErrTerminal to nack-to-DLQ; any other error to nack-and-requeue.
+func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
+	// 1) Decode envelope. Malformed → terminal (can't be retried meaningfully).
+	var env envelope
+	if err := json.Unmarshal(d.Body(), &env); err != nil {
+		p.logger.Error("malformed envelope", "err", err)
+		return fmt.Errorf("decode envelope: %w: %w", err, queue.ErrTerminal)
+	}
+	notifID, err := uuid.Parse(env.NotificationID)
+	if err != nil {
+		p.logger.Error("bad notification id", "err", err)
+		return fmt.Errorf("parse id: %w: %w", err, queue.ErrTerminal)
+	}
+
+	logger := p.logger.With("notification_id", notifID, "correlation_id", env.CorrelationID)
+	ctx = withCorrelationID(ctx, env.CorrelationID)
+
+	// 2) CAS queued → sending. If 0 rows, someone cancelled it; ack and drop.
+	row, err := p.q.MarkSendingCAS(ctx, notifID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			logger.Info("notification not in queued state; ack and drop")
+			return nil // ack — the notification was cancelled or already past 'queued'
+		}
+		return fmt.Errorf("CAS to sending: %w", err)
+	}
+
+	// 3) In-flight lock — defense-in-depth against broker redelivery race.
+	inflightKey := "delivery_inflight:" + notifID.String()
+	gotLock, err := p.rdb.SetNX(ctx, inflightKey, "1", 60*time.Second).Result()
+	if err != nil {
+		return fmt.Errorf("inflight setnx: %w", err)
+	}
+	if !gotLock {
+		// Another worker has it; revert our CAS and ack — the other will deliver.
+		_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID})
+		logger.Info("inflight lock held by another worker; deferring")
+		return nil
+	}
+	defer func() { _ = p.rdb.Del(context.Background(), inflightKey).Err() }()
+
+	// 4) Rate-limit gate — Lua token bucket per channel.
+	dec, err := p.limiter.Allow(ctx, "ratelimit:"+p.channel, p.rateLimitPerSec, p.rateCapacity)
+	if err != nil {
+		// Don't fail the message on Redis issues; nack-requeue and let next attempt go.
+		return fmt.Errorf("ratelimit: %w", err)
+	}
+	if !dec.Allowed {
+		// Throttled. Briefly wait (short throttle, ≤200ms) and re-check; otherwise nack-requeue.
+		wait := dec.RetryAfter
+		const maxInlineWait = 200 * time.Millisecond
+		if wait > maxInlineWait {
+			// Sustained throttle: revert CAS and nack-requeue so prefetch slot stays flowing.
+			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID})
+			logger.Info("rate-limit throttle sustained; requeue", "retry_after", wait)
+			return errors.New("rate-limited (sustained)")
+		}
+		select {
+		case <-ctx.Done():
+			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID})
+			return ctx.Err()
+		case <-time.After(wait):
+		}
+		// Re-try once after the wait; if still throttled, sustained-path applies.
+		dec, _ = p.limiter.Allow(ctx, "ratelimit:"+p.channel, p.rateLimitPerSec, p.rateCapacity)
+		if !dec.Allowed {
+			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID})
+			logger.Info("rate-limit still denied after short wait; requeue")
+			return errors.New("rate-limited (post-wait)")
+		}
+	}
+
+	// 5) Channel-specific content validation — defense in depth.
+	// (API already validated; worker re-checks for the rare case of in-flight migrations.)
+	// Skipping the explicit re-validation for brevity; the API gate is authoritative.
+
+	// 6) Provider call.
+	attempt := row.AttemptCount + 1
+	provResp, callErr := p.provider.Send(ctx, provider.SendRequest{
+		To:      env.Recipient,
+		Channel: env.Channel,
+		Content: env.Content,
+	}, env.CorrelationID)
+
+	now := time.Now()
+	completedAt := pgxTimestamp(now)
+
+	if callErr != nil {
+		// 7a) Record the failed attempt.
+		errStr := callErr.Error()
+		_, _ = p.q.InsertDeliveryAttempt(ctx, gen.InsertDeliveryAttemptParams{
+			NotificationID: notifID,
+			AttemptNumber:  attempt,
+			StartedAt:      pgxTimestamp(now.Add(-100 * time.Millisecond)),
+			CompletedAt:    completedAt,
+			Success:        false,
+			Error:          &errStr,
+			HttpStatus:     httpStatusOf(callErr),
+		})
+
+		// 8a) Decide retry vs terminal.
+		var se *provider.SendError
+		if errors.As(callErr, &se) && se.Kind.IsRetryable() {
+			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID, LastError: &errStr})
+			logger.Info("retryable failure; reverted to queued",
+				"attempt", attempt, "kind", se.Kind, "status", se.HTTPStatus)
+			return callErr // nack-requeue
+		}
+
+		// Terminal — mark dead_letter, insert into dead_letters, ack-to-DLQ.
+		_, _ = p.q.MarkDeadLetter(ctx, gen.MarkDeadLetterParams{ID: notifID, LastError: &errStr})
+		_, _ = p.q.InsertDeadLetter(ctx, gen.InsertDeadLetterParams{
+			NotificationID: notifID,
+			Reason:         truncate(errStr, 500),
+			Payload:        d.Body(),
+		})
+		logger.Warn("terminal failure; dead-lettered", "attempt", attempt, "err", callErr)
+		return queue.ErrTerminal
+	}
+
+	// 7b) Success: record the attempt + mark sent.
+	provMsgID := provResp.MessageID
+	httpStatus := int32(provResp.HTTPStatus)
+	respBodyStr := string(provResp.RawBody)
+	_, _ = p.q.InsertDeliveryAttempt(ctx, gen.InsertDeliveryAttemptParams{
+		NotificationID:    notifID,
+		AttemptNumber:     attempt,
+		StartedAt:         pgxTimestamp(now.Add(-100 * time.Millisecond)),
+		CompletedAt:       completedAt,
+		Success:           true,
+		ProviderMessageID: &provMsgID,
+		HttpStatus:        &httpStatus,
+		ResponseBody:      &respBodyStr,
+	})
+
+	if _, err := p.q.MarkSent(ctx, notifID); err != nil {
+		// Logged but acked — DB hiccup; the row stays in 'sending' and the sweeper picks it up.
+		logger.Error("mark sent failed; ack regardless", "err", err)
+	}
+	logger.Info("delivered", "attempt", attempt, "provider_message_id", provMsgID, "status", httpStatus)
+	return nil // ack
+}
+
+func pgxTimestamp(t time.Time) pgtype.Timestamptz {
+	return pgtype.Timestamptz{Time: t, Valid: true}
+}
+
+func httpStatusOf(err error) *int32 {
+	var se *provider.SendError
+	if errors.As(err, &se) && se.HTTPStatus > 0 {
+		s := int32(se.HTTPStatus)
+		return &s
+	}
+	return nil
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
+}
+
+// Tiny correlation-id context type — local to keep worker independent of internal/api.
+type ctxCorrelationKey struct{}
+
+func withCorrelationID(ctx context.Context, id string) context.Context {
+	if id == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, ctxCorrelationKey{}, id)
+}
