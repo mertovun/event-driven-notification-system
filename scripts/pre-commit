@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Pre-commit hook: gofmt + go vet + go build.
+# Install with: make install-hooks
+
+set -euo pipefail
+
+# Collect staged .go files (skip deletions).
+staged_go=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.go$' || true)
+
+if [[ -z "$staged_go" ]]; then
+    exit 0
+fi
+
+# 1. gofmt — list any staged file that needs formatting.
+unformatted=$(echo "$staged_go" | xargs -r gofmt -l)
+if [[ -n "$unformatted" ]]; then
+    echo "✗ gofmt: the following staged files need formatting:" >&2
+    echo "$unformatted" >&2
+    echo "  run: gofmt -w <files>" >&2
+    exit 1
+fi
+
+# 2. go vet — must pass for the whole module.
+if ! go vet ./... ; then
+    echo "✗ go vet failed" >&2
+    exit 1
+fi
+
+# 3. go build — refuse to commit a non-compiling tree.
+if ! go build ./... ; then
+    echo "✗ go build failed" >&2
+    exit 1
+fi
+
+echo "✓ gofmt + go vet + go build passed"
