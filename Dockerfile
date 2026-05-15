@@ -2,7 +2,8 @@
 # Multi-stage build. See docs in the repo for the rationale on each choice.
 
 # ---- Builder ---------------------------------------------------------------
-FROM golang:1.25-bookworm AS builder
+# Go 1.26 (current stable) — bumped from 1.25 to pick up crypto/tls CVE fixes.
+FROM golang:1.26-bookworm AS builder
 WORKDIR /src
 
 # Module cache layer first.

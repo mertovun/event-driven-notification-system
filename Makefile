@@ -1,4 +1,4 @@
-.PHONY: help install-hooks fmt vet build test test-integration lint generate up down logs ps
+.PHONY: help install-hooks fmt vet build test test-integration lint generate vuln tidy up down logs ps
 
 COMPOSE := docker compose -f deploy/docker-compose.yml --env-file .env
 
@@ -30,6 +30,12 @@ lint: ## Run golangci-lint (requires it to be installed)
 
 generate: ## Regenerate sqlc code
 	@sqlc generate
+
+vuln: ## Run govulncheck against the module
+	@govulncheck ./...
+
+tidy: ## Run go mod tidy
+	@go mod tidy
 
 up: ## Start the full stack (postgres, rabbitmq, redis, app)
 	@$(COMPOSE) up -d --build
