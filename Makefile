@@ -1,4 +1,4 @@
-.PHONY: help install-hooks fmt vet build test lint generate up down logs ps
+.PHONY: help install-hooks fmt vet build test test-integration lint generate up down logs ps
 
 COMPOSE := docker compose -f deploy/docker-compose.yml --env-file .env
 
@@ -21,6 +21,9 @@ build: ## Build all packages
 
 test: ## Run unit tests with race detector
 	@go test -race -count=1 ./...
+
+test-integration: ## Run integration tests (testcontainers-go starts real services)
+	@go test -race -count=1 -tags=integration ./...
 
 lint: ## Run golangci-lint (requires it to be installed)
 	@golangci-lint run
