@@ -1,0 +1,86 @@
+# Local dev / reviewer-facing stack. NOT production-ready (plain HTTP, dev passwords).
+name: notif
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-local}
+        BUILD_TIME: ${BUILD_TIME:-1970-01-01T00:00:00Z}
+    image: notif/notifyd:${VERSION:-dev}
+    env_file: ../.env
+    ports:
+      - "127.0.0.1:${APP_HOST_PORT:-8090}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [backend, frontend]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    restart: unless-stopped
+    # TODO: add a `notifyd healthcheck` subcommand and wire HEALTHCHECK here.
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: notif
+      POSTGRES_PASSWORD: notif
+      POSTGRES_DB: notif
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notif -d notif"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "127.0.0.1:15672:15672"   # management UI, loopback only
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+    restart: unless-stopped
+
+networks:
+  backend:
+    internal: true        # no host route; isolates DB/queue/cache from the outside.
+  frontend:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
