@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mertovun/event-driven-notification-system/internal/config"
@@ -84,7 +85,14 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		}
 	}
 
-	srv := newHTTPServer(cfg.HTTPAddr, logger)
+	pool, err := store.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("pg pool: %w", err)
+	}
+	defer pool.Close()
+	logger.Info("postgres connected", "max_conns", 20)
+
+	srv := newHTTPServer(cfg.HTTPAddr, logger, pool)
 
 	g, gctx := errgroup.WithContext(ctx)
 
@@ -107,9 +115,10 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	return g.Wait()
 }
 
-func newHTTPServer(addr string, logger *slog.Logger) *http.Server {
+func newHTTPServer(addr string, logger *slog.Logger, pool *pgxpool.Pool) *http.Server {
 	r := chi.NewRouter()
 	r.Get("/livez", livezHandler)
+	r.Get("/readyz", readyzHandler(pool))
 	r.Get("/version", versionHandler)
 
 	return &http.Server{
@@ -139,6 +148,35 @@ func parseLogLevel(s string) slog.Level {
 func livezHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok\n"))
+}
+
+// readyzHandler returns a JSON breakdown of dependency health.
+// Returns 200 only when every dependency check passes; 503 otherwise.
+// See docs/06-observability.md §6.
+func readyzHandler(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+		defer cancel()
+
+		checks := map[string]string{"postgres": "ok"}
+		ok := true
+
+		if err := pool.Ping(ctx); err != nil {
+			checks["postgres"] = "unreachable: " + err.Error()
+			ok = false
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if !ok {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":     ok,
+			"checks": checks,
+		})
+	}
 }
 
 func versionHandler(w http.ResponseWriter, _ *http.Request) {
