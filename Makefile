@@ -1,4 +1,4 @@
-.PHONY: help install-hooks fmt vet build test test-integration lint generate vuln tidy up down logs ps
+.PHONY: help install-hooks fmt vet build test test-integration lint generate vuln tidy load-test load-baseline up down logs ps
 
 COMPOSE := docker compose -f deploy/docker-compose.yml --env-file .env
 
@@ -33,6 +33,14 @@ generate: ## Regenerate sqlc code
 
 vuln: ## Run govulncheck against the module
 	@govulncheck ./...
+
+load-test: ## Run all k6 load test scenarios against the running stack
+	@k6 run loadtest/k6_baseline.js
+	@k6 run loadtest/k6_priority.js
+	@k6 run loadtest/k6_idempotency.js
+
+load-baseline: ## Run k6 baseline scenario only
+	@k6 run loadtest/k6_baseline.js
 
 tidy: ## Run go mod tidy
 	@go mod tidy
