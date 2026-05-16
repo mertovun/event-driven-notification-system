@@ -10,6 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/mertovun/event-driven-notification-system/internal/events"
 	"github.com/mertovun/event-driven-notification-system/internal/observability"
 	"github.com/mertovun/event-driven-notification-system/internal/provider"
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
@@ -20,15 +21,16 @@ import (
 // Manager owns N worker pools (one per channel). Each pool runs `count` goroutines
 // each holding their own AMQP consumer with prefetch=1 (per docs/04 §3.1).
 type Manager struct {
-	amqpURL string
-	pool    *pgxpool.Pool
-	q       *gen.Queries
-	rdb     *redis.Client
-	limiter *ratelimit.Limiter
-	prov    *provider.HTTPClient
-	metrics *observability.Metrics
-	logger  *slog.Logger
-	counts  map[string]int // channel → worker count
+	amqpURL   string
+	pool      *pgxpool.Pool
+	q         *gen.Queries
+	rdb       *redis.Client
+	limiter   *ratelimit.Limiter
+	prov      *provider.HTTPClient
+	metrics   *observability.Metrics
+	eventsPub *events.Publisher
+	logger    *slog.Logger
+	counts    map[string]int // channel → worker count
 
 	mu        sync.Mutex
 	consumers []*queue.Consumer
@@ -50,18 +52,20 @@ func NewManager(
 	limiter *ratelimit.Limiter,
 	prov *provider.HTTPClient,
 	metrics *observability.Metrics,
+	eventsPub *events.Publisher,
 	logger *slog.Logger,
 	spec PoolSpec,
 ) *Manager {
 	return &Manager{
-		amqpURL: amqpURL,
-		pool:    pool,
-		q:       q,
-		rdb:     rdb,
-		limiter: limiter,
-		prov:    prov,
-		metrics: metrics,
-		logger:  logger,
+		amqpURL:   amqpURL,
+		pool:      pool,
+		q:         q,
+		rdb:       rdb,
+		limiter:   limiter,
+		prov:      prov,
+		metrics:   metrics,
+		eventsPub: eventsPub,
+		logger:    logger,
 		counts: map[string]int{
 			"sms":   spec.SMSCount,
 			"email": spec.EmailCount,
@@ -87,7 +91,7 @@ func (m *Manager) Run(ctx context.Context) error {
 			continue
 		}
 		// One Pipeline per channel — shared across the N workers for that channel.
-		pipe := New(chName, m.pool, m.q, m.rdb, m.limiter, m.prov, m.metrics, m.logger)
+		pipe := New(chName, m.pool, m.q, m.rdb, m.limiter, m.prov, m.metrics, m.eventsPub, m.logger)
 
 		for i := 0; i < count; i++ {
 			workerName := fmt.Sprintf("%s-%d", chName, i)

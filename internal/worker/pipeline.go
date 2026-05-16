@@ -17,6 +17,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sony/gobreaker"
 
+	"github.com/mertovun/event-driven-notification-system/internal/events"
 	"github.com/mertovun/event-driven-notification-system/internal/observability"
 	"github.com/mertovun/event-driven-notification-system/internal/provider"
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
@@ -38,15 +39,16 @@ type envelope struct {
 // Pipeline holds the dependencies the worker delivers through.
 // One Pipeline instance per channel pool — see Manager (manager.go).
 type Pipeline struct {
-	channel  string
-	pool     *pgxpool.Pool
-	q        *gen.Queries
-	rdb      *redis.Client
-	limiter  *ratelimit.Limiter
-	provider *provider.HTTPClient
-	breaker  *gobreaker.CircuitBreaker
-	metrics  *observability.Metrics
-	logger   *slog.Logger
+	channel   string
+	pool      *pgxpool.Pool
+	q         *gen.Queries
+	rdb       *redis.Client
+	limiter   *ratelimit.Limiter
+	provider  *provider.HTTPClient
+	breaker   *gobreaker.CircuitBreaker
+	metrics   *observability.Metrics
+	eventsPub *events.Publisher
+	logger    *slog.Logger
 
 	// Rate-limit settings — 100/s per channel, capacity = 1s burst (docs/04 §2).
 	rateLimitPerSec float64
@@ -62,6 +64,7 @@ func New(
 	limiter *ratelimit.Limiter,
 	prov *provider.HTTPClient,
 	metrics *observability.Metrics,
+	eventsPub *events.Publisher,
 	logger *slog.Logger,
 ) *Pipeline {
 	chanLogger := logger.With("channel", channel)
@@ -74,6 +77,7 @@ func New(
 		provider:        prov,
 		breaker:         newBreaker(channel, chanLogger),
 		metrics:         metrics,
+		eventsPub:       eventsPub,
 		logger:          chanLogger,
 		rateLimitPerSec: 100,
 		rateCapacity:    100,
@@ -245,6 +249,7 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 			Reason:         truncate(errStr, 500),
 			Payload:        d.Body(),
 		})
+		p.emitStatus(ctx, notifID, "dead_letter", env.CorrelationID)
 		logger.Warn("terminal failure; dead-lettered", "attempt", attempt, "err", callErr)
 		return queue.ErrTerminal
 	}
@@ -268,6 +273,7 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 		// Logged but acked — DB hiccup; the row stays in 'sending' and the sweeper picks it up.
 		logger.Error("mark sent failed; ack regardless", "err", err)
 	}
+	p.emitStatus(ctx, notifID, "sent", env.CorrelationID)
 	logger.Info("delivered", "attempt", attempt, "provider_message_id", provMsgID, "status", httpStatus)
 	return nil // ack
 }
@@ -291,6 +297,20 @@ func attemptLabel(attempt int32) string {
 		return "5+"
 	}
 	return fmt.Sprint(attempt)
+}
+
+// emitStatus is a fire-and-forget Redis Pub/Sub publish for WS fan-out.
+func (p *Pipeline) emitStatus(ctx context.Context, notifID uuid.UUID, status, correlationID string) {
+	if p.eventsPub == nil {
+		return
+	}
+	p.eventsPub.Publish(ctx, events.StatusEvent{
+		NotificationID: notifID,
+		Channel:        p.channel,
+		Status:         status,
+		At:             time.Now().UTC(),
+		CorrelationID:  correlationID,
+	})
 }
 
 func truncate(s string, n int) string {

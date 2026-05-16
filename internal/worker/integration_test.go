@@ -99,7 +99,7 @@ func TestDeliveryEndToEnd(t *testing.T) {
 	disp := outbox.New(pool, q, pub, logger, dCfg)
 
 	// Worker manager — 2 workers per channel for the test.
-	mgr := worker.NewManager(amqpURL, pool, q, rdb, limiter, prov, nil, logger, worker.PoolSpec{
+	mgr := worker.NewManager(amqpURL, pool, q, rdb, limiter, prov, nil, nil, logger, worker.PoolSpec{
 		SMSCount: 2, EmailCount: 2, PushCount: 2,
 	})
 

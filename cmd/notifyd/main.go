@@ -24,6 +24,7 @@ import (
 
 	"github.com/mertovun/event-driven-notification-system/internal/api"
 	"github.com/mertovun/event-driven-notification-system/internal/config"
+	"github.com/mertovun/event-driven-notification-system/internal/events"
 	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
 	"github.com/mertovun/event-driven-notification-system/internal/observability"
 	"github.com/mertovun/event-driven-notification-system/internal/outbox"
@@ -149,6 +150,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	logger.Info("redis connected")
 
 	idemStore := idempotency.NewStore(rdb, 0)
+	eventsPub := events.NewPublisher(rdb, logger)
 
 	if cfg.DevAPIKey != "" {
 		if err := api.SeedDevKey(ctx, q, cfg.DevAPIKey); err != nil {
@@ -184,7 +186,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 			return fmt.Errorf("provider client: %w", err)
 		}
 		limiter := ratelimit.New(rdb)
-		workMgr = worker.NewManager(cfg.AMQPURL, pool, q, rdb, limiter, provClient, metrics, logger, worker.PoolSpec{
+		workMgr = worker.NewManager(cfg.AMQPURL, pool, q, rdb, limiter, provClient, metrics, eventsPub, logger, worker.PoolSpec{
 			SMSCount:   cfg.WorkerCountSMS,
 			EmailCount: cfg.WorkerCountEmail,
 			PushCount:  cfg.WorkerCountPush,
