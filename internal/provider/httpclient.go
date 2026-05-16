@@ -153,10 +153,29 @@ func NewWithOptions(endpoint, userAgent string, opts Options) (*HTTPClient, erro
 		MaxConnsPerHost:       100,
 		ForceAttemptHTTP2:     true,
 	}
+	endpointHost := u.Host
 	return &HTTPClient{
 		client: &http.Client{
 			Timeout:   10 * time.Second,
 			Transport: transport,
+			// Redirect policy:
+			//   - Cap at 2 hops (matches typical CDN/proxy chains; rejects
+			//     redirect loops cheap).
+			//   - Refuse to leave the configured endpoint's host. A redirect
+			//     to a different host (especially across protocols) is almost
+			//     always an SSRF / phishing vector; we'd rather fail than
+			//     follow. The dial-time SSRF Control hook still gates the
+			//     actual TCP connection, but this rejects the redirect
+			//     earlier with a clearer error.
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) >= 2 {
+					return fmt.Errorf("too many redirects (%d)", len(via))
+				}
+				if req.URL.Host != endpointHost {
+					return fmt.Errorf("refusing cross-host redirect: %s → %s", endpointHost, req.URL.Host)
+				}
+				return nil
+			},
 		},
 		endpoint:  endpoint,
 		userAgent: defaultIfEmpty(userAgent, "notifyd/0.1"),
