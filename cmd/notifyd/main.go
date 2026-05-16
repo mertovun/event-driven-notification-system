@@ -31,6 +31,7 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/provider"
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
 	"github.com/mertovun/event-driven-notification-system/internal/ratelimit"
+	"github.com/mertovun/event-driven-notification-system/internal/scheduler"
 	"github.com/mertovun/event-driven-notification-system/internal/store"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 	"github.com/mertovun/event-driven-notification-system/internal/worker"
@@ -164,9 +165,10 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	// Queue publisher + outbox dispatcher + worker pools run in worker / all mode.
 	// Build them before the router so /readyz can include AMQP in the checks.
 	var (
-		pub     *queue.Publisher
-		disp    *outbox.Dispatcher
-		workMgr *worker.Manager
+		pub      *queue.Publisher
+		disp     *outbox.Dispatcher
+		schedDsp *scheduler.Dispatcher
+		workMgr  *worker.Manager
 	)
 	if cfg.Mode == "worker" || cfg.Mode == "all" {
 		var err error
@@ -181,6 +183,10 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		cfgD.PollInterval = cfg.OutboxPollInterval
 		cfgD.BatchSize = cfg.OutboxBatchSize
 		disp = outbox.New(pool, q, pub, logger, cfgD)
+
+		// Scheduled-notification poller.
+		schedID, _ := uuid.NewV7()
+		schedDsp = scheduler.New(pool, q, logger, scheduler.Default(schedID.String()))
 
 		// Provider client + rate limiter + worker manager.
 		provClient, err := provider.New(cfg.WebhookURL, "notifyd/0.1")
@@ -221,6 +227,9 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 
 	if disp != nil {
 		g.Go(func() error { return disp.Run(gctx) })
+	}
+	if schedDsp != nil {
+		g.Go(func() error { return schedDsp.Run(gctx) })
 	}
 	if workMgr != nil {
 		g.Go(func() error { return workMgr.Run(gctx) })
