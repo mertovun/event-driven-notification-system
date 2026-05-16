@@ -1,4 +1,5 @@
--- Initial schema. See docs/02-data-and-persistence.md §3 (DDL) and §5 (indexes).
+-- Initial schema: notifications + batches + delivery_attempts + dead_letters
+-- + api_keys + scheduled_notifications, with indexes for the API's hot paths.
 
 -- ---- Extensions ------------------------------------------------------------
 
@@ -51,29 +52,29 @@ CREATE TABLE notifications (
         CHECK (scheduled_at IS NULL OR status IN ('pending','queued','cancelled','scheduled'))
 );
 
--- Partial unique on idempotency_key (audit + DR fallback). See §4.3.
+-- Partial unique on idempotency_key (audit + DR fallback if Redis is lost).
 CREATE UNIQUE INDEX notifications_idempotency_key_uniq
     ON notifications (idempotency_key)
     WHERE idempotency_key IS NOT NULL;
 
--- §5.1.a Listing by status, newest first.
+-- Listing by status, newest first (admin dashboard, ops queries).
 CREATE INDEX notifications_status_created_at_idx
     ON notifications (status, created_at DESC);
 
--- §5.1.b Batch detail page.
+-- Batch detail page: list all notifications in a batch.
 CREATE INDEX notifications_batch_id_created_at_idx
     ON notifications (batch_id, created_at DESC)
     WHERE batch_id IS NOT NULL;
 
--- §5.1.c Keyset pagination cursor.
+-- Keyset pagination cursor on (created_at DESC, id DESC).
 CREATE INDEX notifications_created_at_id_idx
     ON notifications (created_at DESC, id DESC);
 
--- §5.1.e Channel + status filter.
+-- Channel + status filter combination for the filtered list endpoint.
 CREATE INDEX notifications_channel_status_created_at_idx
     ON notifications (channel, status, created_at DESC);
 
--- §5.1.f Correlation lookup.
+-- Correlation-id lookup (debugging by request id).
 CREATE INDEX notifications_correlation_id_idx
     ON notifications (correlation_id);
 
@@ -97,8 +98,8 @@ CREATE TABLE delivery_attempts (
         CHECK ((completed_at IS NULL) = (success = false AND error IS NULL AND http_status IS NULL))
 );
 
--- Backward index scans on the UNIQUE index handle ORDER BY attempt_number DESC.
--- See §5.3 for the rationale on not adding an extra index.
+-- Backward index scans on the UNIQUE (notification_id, attempt_number) index
+-- handle ORDER BY attempt_number DESC at no extra cost — no separate index needed.
 
 -- ---- dead_letters ----------------------------------------------------------
 
@@ -112,7 +113,7 @@ CREATE TABLE dead_letters (
     CONSTRAINT dead_letters_one_per_notification UNIQUE (notification_id)
 );
 
--- §5.4.a Recent dead letters, newest first.
+-- Recent dead letters, newest first (admin DLQ listing).
 CREATE INDEX dead_letters_dlq_at_idx
     ON dead_letters (dlq_at DESC);
 
@@ -130,7 +131,7 @@ CREATE TABLE api_keys (
         CHECK (revoked_at IS NULL OR revoked_at >= created_at)
 );
 
--- §5.5.a Active-keys lookup partial index for the auth hot path.
+-- Active-keys lookup partial index for the auth hot path.
 CREATE INDEX api_keys_active_idx
     ON api_keys (hashed_key)
     WHERE revoked_at IS NULL;
@@ -148,7 +149,7 @@ CREATE TABLE scheduled_notifications (
         CHECK ((claimed_at IS NULL) = (claimed_by IS NULL))
 );
 
--- §5.2.a Due-unclaimed partial index for the poller's hot path.
+-- Due-unclaimed partial index for the scheduler poller's hot path.
 CREATE INDEX scheduled_notifications_due_unclaimed_idx
     ON scheduled_notifications (due_at)
     WHERE claimed_at IS NULL;

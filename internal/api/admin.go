@@ -94,7 +94,7 @@ func (h *adminHandler) get(w http.ResponseWriter, r *http.Request) {
 
 // replay — POST /v1/admin/dead-letters/{id}/replay
 // Reset-in-place model: status dead_letter → queued, attempt_count = 0,
-// write a fresh outbox row, log to admin_audit. See docs/13 Part B §14.
+// write a fresh outbox row, log to admin_audit.
 type replayResponse struct {
 	NotificationID uuid.UUID `json:"notification_id"`
 	NewStatus      string    `json:"new_status"`

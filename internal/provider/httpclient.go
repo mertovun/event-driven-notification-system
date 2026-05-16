@@ -1,5 +1,5 @@
 // Package provider is the outbound HTTP client for the external notification provider.
-// All timeouts and connection limits are explicit per docs/04 §4.
+// All timeouts and connection limits are explicit (no use of http.DefaultClient).
 package provider
 
 import (
@@ -133,7 +133,7 @@ func NewWithOptions(endpoint, userAgent string, opts Options) (*HTTPClient, erro
 	dialer := &net.Dialer{
 		Timeout:   2 * time.Second,
 		KeepAlive: 30 * time.Second,
-		// SSRF defense — see docs/05 §7. The configured WEBHOOK_URL is operator-supplied,
+		// SSRF defense. The configured WEBHOOK_URL is operator-supplied,
 		// not per-request user input, so the SSRF surface is small. We still wire a
 		// Control hook so reviewers see the pattern and it works defensively if the
 		// URL host ever resolves to a private/metadata range.

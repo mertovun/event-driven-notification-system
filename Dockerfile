@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1.7
-# Multi-stage build. See docs in the repo for the rationale on each choice.
+# Multi-stage build:
+#   builder — pinned golang:1.26-bookworm, CGO off, trimpath, ldflags-stamped version
+#   final   — distroless/static-debian12:nonroot; no shell, no package manager
 
 # ---- Builder ---------------------------------------------------------------
 # Go 1.26 (current stable) — bumped from 1.25 to pick up crypto/tls CVE fixes.

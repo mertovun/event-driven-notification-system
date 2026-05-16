@@ -1,5 +1,5 @@
 // Package observability provides slog handlers, Prometheus registry, OTel SDK init,
-// and the /livez /readyz health endpoints. See docs/06.
+// and the /livez /readyz health endpoints.
 package observability
 
 import (
@@ -77,7 +77,7 @@ func NewMetrics() *Metrics {
 		Help: "Worker delivery outcomes. status in {success, failure, dead_letter}.",
 	}, []string{"channel", "status"})
 
-	// Buckets justified for ~50ms..10s SLO range — see docs/06 §4.
+	// Buckets justified for ~50ms..10s SLO range.
 	m.DeliveryDurationSecs = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "notification_delivery_duration_seconds",
 		Help:    "End-to-end worker delivery latency.",

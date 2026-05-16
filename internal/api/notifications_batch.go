@@ -15,7 +15,7 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 )
 
-// MaxBatchItems is the per-request batch ceiling per docs/01 §9.
+// MaxBatchItems is the per-request batch ceiling.
 const MaxBatchItems = 1000
 
 type batchCreateRequest struct {

@@ -22,7 +22,7 @@ import (
 )
 
 // notificationCreateRequest mirrors the JSON request body for POST /v1/notifications.
-// Two shapes are valid: raw `content`, OR `template_id` + `variables`. See docs/01 §4.1.
+// Two shapes are valid: raw `content`, OR `template_id` + `variables`.
 type notificationCreateRequest struct {
 	Channel     notification.Channel  `json:"channel"`
 	Recipient   string                `json:"recipient"`
@@ -91,7 +91,9 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Shape B: resolve template + render at create time. See docs/12 §3.
+	// Shape B: resolve template + render at create time (not delivery time)
+	// so retries reproduce identical wire bytes and template edits don't
+	// retroactively alter delivered notifications.
 	// We mutate req.Content in place so the rest of the handler treats this as Shape A.
 	var templateVersion *int32
 	if req.TemplateID != nil {

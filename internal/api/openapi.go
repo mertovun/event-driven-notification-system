@@ -12,9 +12,9 @@ import (
 var openAPIYAML []byte
 
 // swaggerHTML is a minimal Swagger UI page that loads the Swagger UI bundle from a
-// CDN and points at our embedded /openapi.yaml. Trade-off documented in docs/09 §2:
-// pulling the UI from a CDN keeps the binary small and the implementation tiny.
-// Once offline-first review is needed, swap to `go:embed swagger-ui-dist/`.
+// CDN and points at our embedded /openapi.yaml. Trade-off: pulling the UI
+// from a CDN keeps the binary small and the implementation tiny.
+// For offline review, swap to `go:embed swagger-ui-dist/`.
 const swaggerHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>

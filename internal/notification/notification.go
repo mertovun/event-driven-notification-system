@@ -27,7 +27,7 @@ const (
 )
 
 // Int16 returns the smallint value persisted in notifications.priority.
-// 1, 5, 9 — see docs/02 §3.3 (priority CHECK).
+// 1, 5, 9 — the priority CHECK constraint on the notifications table.
 func (p Priority) Int16() int16 {
 	switch p {
 	case PriorityHigh:

@@ -7,7 +7,7 @@ import (
 	"github.com/sony/gobreaker"
 )
 
-// newBreaker returns the per-channel breaker per docs/04 §5.
+// newBreaker returns the per-channel breaker.
 // State NOT persisted across restart — cheap to rewarm.
 func newBreaker(channel string, logger *slog.Logger) *gobreaker.CircuitBreaker {
 	return gobreaker.NewCircuitBreaker(gobreaker.Settings{

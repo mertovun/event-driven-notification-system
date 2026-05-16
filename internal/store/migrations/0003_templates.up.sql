@@ -1,4 +1,6 @@
--- Template system. See docs/12-template-system.md.
+-- Template system: versioned `templates` table + `template_id`/`template_version`
+-- audit columns on notifications. Substitution happens at create time, so the
+-- rendered content on the notification row is the source of truth for replays.
 
 CREATE TABLE templates (
     id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),

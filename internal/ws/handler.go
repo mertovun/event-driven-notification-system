@@ -70,7 +70,7 @@ func Handler(hub *Hub, cfg Config, logger *slog.Logger) http.HandlerFunc {
 
 func acceptedSubprotocols(r *http.Request) []string {
 	// Allow `bearer.<token>` subprotocol as a fallback for browsers that can't set
-	// Authorization headers. (Documented in docs/13 §A3.)
+	// Authorization headers.
 	prot := r.Header.Get("Sec-WebSocket-Protocol")
 	if strings.HasPrefix(prot, "bearer.") {
 		return []string{prot}

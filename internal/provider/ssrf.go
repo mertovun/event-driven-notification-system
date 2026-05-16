@@ -19,7 +19,6 @@ func (e *ssrfError) Error() string {
 
 // ssrfControl is the (*net.Dialer).Control hook. Called after DNS resolution
 // with the final IP. Reject loopback, link-local, RFC 1918, CGNAT, and metadata IPs.
-// See docs/05 §7.
 func ssrfControl(network, address string, _ syscall.RawConn) error {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {

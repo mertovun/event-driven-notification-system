@@ -8,10 +8,10 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/notification"
 )
 
-// E.164 recipient format for SMS. See docs/05 §4.
+// E.164 recipient format for SMS.
 var e164 = regexp.MustCompile(`^\+[1-9]\d{1,14}$`)
 
-// Content size caps. See docs/05 §4.
+// Content size caps.
 const (
 	smsMaxChars   = 1000
 	emailMaxBytes = 256 * 1024

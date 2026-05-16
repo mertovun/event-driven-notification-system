@@ -19,7 +19,9 @@ import (
 )
 
 // Manager owns N worker pools (one per channel). Each pool runs `count` goroutines
-// each holding their own AMQP consumer with prefetch=1 (per docs/04 §3.1).
+// each holding their own AMQP consumer with prefetch=1 so RabbitMQ
+// priority queues are honoured per-message (a consumer with prefetch>1
+// would have already pulled lower-priority work into its local buffer).
 type Manager struct {
 	amqpURL   string
 	pool      *pgxpool.Pool

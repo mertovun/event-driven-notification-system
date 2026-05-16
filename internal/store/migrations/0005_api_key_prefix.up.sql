@@ -1,5 +1,4 @@
 -- Add a non-secret prefix to api_keys for fast candidate lookup before argon2 verify.
--- See docs/05-security-and-networking.md §1.
 
 ALTER TABLE api_keys
     ADD COLUMN key_prefix text NOT NULL DEFAULT '' CHECK (length(key_prefix) BETWEEN 0 AND 16);

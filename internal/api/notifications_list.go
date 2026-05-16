@@ -60,8 +60,8 @@ type listResponse struct {
 
 // list handles GET /v1/notifications with cursor pagination and filtering.
 // Query params: status, channel, batch_id, created_after, created_before, cursor, limit.
-// See docs/01 §6, §7. Uses squirrel because the WHERE clause is dynamic
-// (sqlc can't generate that one cleanly — see docs/02 §8).
+// Uses squirrel because the WHERE clause is dynamic (sqlc can't generate
+// that one cleanly — dynamic filter sets aren't its strength).
 func (h *notificationsHandler) list(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 

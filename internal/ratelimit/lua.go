@@ -1,5 +1,5 @@
 // Package ratelimit implements the per-channel token bucket via a Redis Lua script.
-// Atomic across replicas; one shared bucket per channel. See docs/04 §2.
+// Atomic across replicas; one shared bucket per channel.
 package ratelimit
 
 import (

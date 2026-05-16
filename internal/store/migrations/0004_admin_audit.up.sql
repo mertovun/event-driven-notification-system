@@ -1,4 +1,4 @@
--- Admin audit log. See docs/13-websocket-and-admin.md Part B §11.
+-- Admin audit log: every DLQ replay/purge writes a row with actor + action.
 
 CREATE TABLE admin_audit (
     id          bigserial   PRIMARY KEY,

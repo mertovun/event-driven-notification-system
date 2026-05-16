@@ -9,7 +9,7 @@ import (
 )
 
 // PIIRedactHandler wraps a base slog.Handler and masks attribute values whose
-// keys match well-known PII fields. See docs/05 §9 and docs/06 §8.
+// keys match well-known PII fields.
 //
 // Masking rules:
 //

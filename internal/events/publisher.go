@@ -1,5 +1,4 @@
 // Package events publishes status change events to Redis Pub/Sub for WS fan-out.
-// See docs/13 Part A §4.
 package events
 
 import (
@@ -16,7 +15,7 @@ import (
 const Channel = "events:notifications"
 
 // StatusEvent is the JSON wire shape pushed to subscribers.
-// Intentionally PII-light: no recipient, no content (see docs/13 Part A §7).
+// Intentionally PII-light: no recipient, no content.
 type StatusEvent struct {
 	NotificationID uuid.UUID  `json:"notification_id"`
 	BatchID        *uuid.UUID `json:"batch_id,omitempty"`

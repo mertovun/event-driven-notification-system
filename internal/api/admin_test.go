@@ -8,7 +8,7 @@ import (
 
 // TestReplayStateTransitionGuard documents (and tests) the policy that only
 // dead_letter is replayable. failed → queued is explicitly rejected because
-// permanent failures shouldn't auto-recover. See docs/13 Part B §14.
+// permanent failures shouldn't auto-recover.
 func TestReplayStateTransitionGuard(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

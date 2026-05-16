@@ -1,4 +1,6 @@
--- Transactional outbox. See docs/11-transactional-outbox.md.
+-- Transactional outbox. API writes a row in the same TX as the notification;
+-- a dispatcher claims rows via FOR UPDATE SKIP LOCKED and publishes to AMQP
+-- with broker confirms. Eliminates the publish-after-commit race.
 
 CREATE TABLE outbox (
     id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
