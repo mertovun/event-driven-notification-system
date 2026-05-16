@@ -70,6 +70,13 @@ func (h *Hub) Run(ctx context.Context) error {
 
 // dispatch parses the payload + fans out to filtered subscribers.
 // Drops connections with a full send buffer (slow consumers) — RFC 6455 close code 1008.
+//
+// Lock discipline: the slow-consumer eviction calls back into the handler's
+// close path which eventually wants Hub.Unregister (a write lock). Calling
+// sub.close while still holding the read lock would either deadlock
+// (synchronous close → Unregister) or stack up goroutine waiters (async
+// close → Unregister blocks behind the dispatch loop). We instead collect
+// slow subs into a slice, drop the read lock, and close outside it.
 func (h *Hub) dispatch(payload []byte) {
 	var ev events.StatusEvent
 	if err := json.Unmarshal(payload, &ev); err != nil {
@@ -77,8 +84,8 @@ func (h *Hub) dispatch(payload []byte) {
 		return
 	}
 
+	var slow []*subscriber
 	h.mu.RLock()
-	defer h.mu.RUnlock()
 	for _, sub := range h.subs {
 		if !sub.filter.Matches(ev.BatchID, ev.Channel) {
 			continue
@@ -86,9 +93,13 @@ func (h *Hub) dispatch(payload []byte) {
 		select {
 		case sub.send <- payload:
 		default:
-			// Slow consumer — evict.
-			go sub.close("slow_consumer")
+			slow = append(slow, sub)
 		}
+	}
+	h.mu.RUnlock()
+
+	for _, sub := range slow {
+		sub.close("slow_consumer")
 	}
 }
 

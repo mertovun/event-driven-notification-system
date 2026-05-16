@@ -5,7 +5,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	cws "github.com/coder/websocket"
@@ -31,6 +34,8 @@ func DefaultConfig() Config {
 // Handler returns an HTTP handler that upgrades to WebSocket and bridges to the hub.
 // Auth was enforced by the upstream chi middleware; this handler trusts r.Context().
 func Handler(hub *Hub, cfg Config, logger *slog.Logger) http.HandlerFunc {
+	allowedOrigins := loadAllowedOrigins()
+	insecureSkipVerify := len(allowedOrigins) == 0
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Parse filter query param.
 		filter, err := ParseFilter(r.URL.Query().Get("filter"))
@@ -39,25 +44,39 @@ func Handler(hub *Hub, cfg Config, logger *slog.Logger) http.HandlerFunc {
 			return
 		}
 
-		// Accept the upgrade.
-		conn, err := cws.Accept(w, r, &cws.AcceptOptions{
-			Subprotocols:       acceptedSubprotocols(r),
-			InsecureSkipVerify: true, // we run behind a reverse proxy in prod; origin check belongs there
-		})
+		// Origin check: opt-in via WS_ALLOWED_ORIGINS env var (comma-separated
+		// list of full origins like "https://app.example.com"). When the var
+		// is set the upgrader rejects mismatched Origin headers; when empty,
+		// we fall back to InsecureSkipVerify=true and assume a reverse proxy
+		// is enforcing it. The README documents both modes.
+		acceptOpts := &cws.AcceptOptions{
+			Subprotocols:       nil, // bearer.<token> subprotocol was unwired; remove the attack surface
+			InsecureSkipVerify: insecureSkipVerify,
+		}
+		if !insecureSkipVerify {
+			acceptOpts.OriginPatterns = allowedOrigins
+		}
+		conn, err := cws.Accept(w, r, acceptOpts)
 		if err != nil {
 			logger.Warn("ws upgrade failed", "err", err)
 			return
 		}
 		defer func() { _ = conn.Close(cws.StatusNormalClosure, "") }()
 
-		// Subscriber lifecycle.
+		// Subscriber lifecycle. closeOnce can be invoked from two places: the
+		// hub's slow-consumer eviction goroutine and the handler's deferred
+		// cleanup on read/write error. sync.Once guarantees the underlying
+		// conn.Close + cancel() runs exactly once across both paths.
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
-		closeOnce := newOnce(func(reason string) {
-			_ = conn.Close(cws.StatusPolicyViolation, reason)
-			cancel()
-		})
-		id, recv := hub.Register(filter, closeOnce.Do)
+		var closeOnce sync.Once
+		doClose := func(reason string) {
+			closeOnce.Do(func() {
+				_ = conn.Close(cws.StatusPolicyViolation, reason)
+				cancel()
+			})
+		}
+		id, recv := hub.Register(filter, doClose)
 		defer hub.Unregister(id)
 
 		logger.Info("ws connection accepted", "sub_id", id, "filter", filter)
@@ -68,14 +87,31 @@ func Handler(hub *Hub, cfg Config, logger *slog.Logger) http.HandlerFunc {
 	}
 }
 
-func acceptedSubprotocols(r *http.Request) []string {
-	// Allow `bearer.<token>` subprotocol as a fallback for browsers that can't set
-	// Authorization headers.
-	prot := r.Header.Get("Sec-WebSocket-Protocol")
-	if strings.HasPrefix(prot, "bearer.") {
-		return []string{prot}
+// loadAllowedOrigins parses the WS_ALLOWED_ORIGINS env var. Each entry is
+// matched as a host pattern by `coder/websocket`; we strip schemes so the
+// caller can paste their full origins ("https://app.example.com,https://...")
+// without worrying about format. Empty or unset → no allowlist, fall back to
+// InsecureSkipVerify=true (with proxy-enforced origin check).
+func loadAllowedOrigins() []string {
+	raw := strings.TrimSpace(os.Getenv("WS_ALLOWED_ORIGINS"))
+	if raw == "" {
+		return nil
 	}
-	return nil
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		// Accept either full origin (https://host[:port]) or bare host.
+		if u, err := url.Parse(p); err == nil && u.Host != "" {
+			out = append(out, u.Host)
+		} else {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // writePump sends events from `recv` and pings on Heartbeat ticks.
@@ -120,19 +156,4 @@ func readPump(ctx context.Context, conn *cws.Conn, cfg Config, logger *slog.Logg
 			return
 		}
 	}
-}
-
-// once wraps a one-shot close function so we can call it from multiple paths.
-type once struct {
-	fired bool
-	fn    func(string)
-}
-
-func newOnce(fn func(string)) *once { return &once{fn: fn} }
-func (o *once) Do(reason string) {
-	if o.fired {
-		return
-	}
-	o.fired = true
-	o.fn(reason)
 }
