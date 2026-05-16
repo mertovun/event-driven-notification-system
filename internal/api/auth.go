@@ -135,14 +135,36 @@ func AuthMiddleware(q *gen.Queries, rdb *redis.Client) func(http.Handler) http.H
 			}
 
 			// Fast path: Redis cache of recently verified bearers.
+			// Revocation honoured immediately via a per-id revocation marker:
+			// if the admin revoke endpoint marked this key revoked, treat the
+			// cached entry as a miss so the slow path re-queries Postgres
+			// (which will reject the now-revoked row).
 			if hit, _ := lookupAuthCache(r.Context(), rdb, raw); hit != nil {
-				ctx := context.WithValue(r.Context(), ctxKeyAuthedKey, *hit)
-				next.ServeHTTP(w, r.WithContext(ctx))
-				return
+				if !isKeyRevoked(r.Context(), rdb, hit.ID) {
+					ctx := context.WithValue(r.Context(), ctxKeyAuthedKey, *hit)
+					next.ServeHTTP(w, r.WithContext(ctx))
+					return
+				}
+				// Cache hit but key revoked — fall through to slow path.
+				// The DB query excludes revoked rows, so the bearer will 401.
+				invalidateAuthCache(r.Context(), rdb, raw)
 			}
 
 			// Slow path: prefix-narrowed candidate lookup + argon2id verify.
 			prefix := raw[:keyPrefixLen]
+
+			// Brute-force gate. Each prefix has a small budget of failed
+			// verifies per window; an attacker hammering random prefixes hits
+			// the lock before they can run more than a few argon2 cycles.
+			// Cached hits skip this check entirely (their cost is ~0.3ms).
+			if isAuthFailureLocked(r.Context(), rdb, prefix) {
+				w.Header().Set("Retry-After", "60")
+				WriteProblem(w, r, http.StatusTooManyRequests,
+					"/problems/rate-limited", "Too Many Requests",
+					"too many failed authentication attempts for this key prefix")
+				return
+			}
+
 			cands, err := q.ListActiveAPIKeysByPrefix(r.Context(), prefix)
 			if err != nil {
 				WriteErrorAsProblem(w, r, fmt.Errorf("api_keys lookup: %w", err))
@@ -167,6 +189,10 @@ func AuthMiddleware(q *gen.Queries, rdb *redis.Client) func(http.Handler) http.H
 				}
 			}
 
+			// Verify failed (or no candidates) — record the attempt and
+			// 401. If the counter just tripped the limit, the next request
+			// for this prefix will short-circuit at the gate above.
+			_ = noteAuthFailure(r.Context(), rdb, prefix)
 			WriteProblem(w, r, http.StatusUnauthorized,
 				"/problems/unauthorized", "Unauthorized", "invalid api key")
 		})

@@ -108,6 +108,10 @@ func NewRouter(d Deps) http.Handler {
 			a.Get("/dead-letters/{id}", adminH.get)
 			a.Post("/dead-letters/{id}/replay", adminH.replay)
 			a.Delete("/dead-letters/{id}", adminH.purge)
+
+			// API-key management. POST instead of DELETE because revocation
+			// records a state transition; the row is not deleted.
+			a.Post("/api-keys/{id}/revoke", adminH.revokeAPIKey)
 		})
 
 		// templates

@@ -16,6 +16,7 @@ type AdminAudit struct {
 	TargetID *string            `json:"target_id"`
 	Details  []byte             `json:"details"`
 	At       pgtype.Timestamptz `json:"at"`
+	ActorID  uuid.NullUUID      `json:"actor_id"`
 }
 
 type ApiKey struct {

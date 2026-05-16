@@ -7,24 +7,28 @@ package gen
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 const insertAuditEntry = `-- name: InsertAuditEntry :one
-INSERT INTO admin_audit (actor, action, target_id, details)
-VALUES ($1, $2, $3, $4)
-RETURNING id, actor, action, target_id, details, at
+INSERT INTO admin_audit (actor, actor_id, action, target_id, details)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, actor, action, target_id, details, at, actor_id
 `
 
 type InsertAuditEntryParams struct {
-	Actor    string  `json:"actor"`
-	Action   string  `json:"action"`
-	TargetID *string `json:"target_id"`
-	Details  []byte  `json:"details"`
+	Actor    string        `json:"actor"`
+	ActorID  uuid.NullUUID `json:"actor_id"`
+	Action   string        `json:"action"`
+	TargetID *string       `json:"target_id"`
+	Details  []byte        `json:"details"`
 }
 
 func (q *Queries) InsertAuditEntry(ctx context.Context, arg InsertAuditEntryParams) (AdminAudit, error) {
 	row := q.db.QueryRow(ctx, insertAuditEntry,
 		arg.Actor,
+		arg.ActorID,
 		arg.Action,
 		arg.TargetID,
 		arg.Details,
@@ -37,12 +41,13 @@ func (q *Queries) InsertAuditEntry(ctx context.Context, arg InsertAuditEntryPara
 		&i.TargetID,
 		&i.Details,
 		&i.At,
+		&i.ActorID,
 	)
 	return i, err
 }
 
 const listRecentAuditEntries = `-- name: ListRecentAuditEntries :many
-SELECT id, actor, action, target_id, details, at FROM admin_audit
+SELECT id, actor, action, target_id, details, at, actor_id FROM admin_audit
 ORDER BY at DESC
 LIMIT $1::int
 `
@@ -63,6 +68,7 @@ func (q *Queries) ListRecentAuditEntries(ctx context.Context, pageLimit int32) (
 			&i.TargetID,
 			&i.Details,
 			&i.At,
+			&i.ActorID,
 		); err != nil {
 			return nil, err
 		}

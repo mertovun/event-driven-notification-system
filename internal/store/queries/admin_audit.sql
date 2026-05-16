@@ -1,6 +1,6 @@
 -- name: InsertAuditEntry :one
-INSERT INTO admin_audit (actor, action, target_id, details)
-VALUES (@actor, @action, @target_id, @details)
+INSERT INTO admin_audit (actor, actor_id, action, target_id, details)
+VALUES (@actor, @actor_id, @action, @target_id, @details)
 RETURNING *;
 
 -- name: ListRecentAuditEntries :many

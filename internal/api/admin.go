@@ -10,20 +10,22 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/mertovun/event-driven-notification-system/internal/notification"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 )
 
-// adminHandler exposes DLQ inspection and replay endpoints. All routes require
-// the `admin` scope, enforced upstream by RequireScope().
+// adminHandler exposes DLQ inspection and replay + API-key revocation endpoints.
+// All routes require the `admin` scope, enforced upstream by RequireScope().
 type adminHandler struct {
 	notifH *notificationsHandler // reused for outbox-row insert helper
 	q      *gen.Queries
+	rdb    *redis.Client // optional: for auth-cache revocation propagation
 }
 
 func newAdminHandler(d Deps, notifH *notificationsHandler) *adminHandler {
-	return &adminHandler{notifH: notifH, q: d.Queries}
+	return &adminHandler{notifH: notifH, q: d.Queries, rdb: d.Redis}
 }
 
 type deadLetterResponse struct {
@@ -175,6 +177,7 @@ func (h *adminHandler) replay(w http.ResponseWriter, r *http.Request) {
 	details, _ := json.Marshal(map[string]any{"reason": "manual replay"})
 	if _, err := qtx.InsertAuditEntry(r.Context(), gen.InsertAuditEntryParams{
 		Actor:    k.Name,
+		ActorID:  parseActorID(k.ID),
 		Action:   "dlq_replay",
 		TargetID: &tid,
 		Details:  details,
@@ -206,7 +209,75 @@ func (h *adminHandler) purge(w http.ResponseWriter, r *http.Request) {
 	k, _ := AuthedKeyFrom(r.Context())
 	tid := id.String()
 	_, _ = h.q.InsertAuditEntry(r.Context(), gen.InsertAuditEntryParams{
-		Actor: k.Name, Action: "dlq_purge", TargetID: &tid, Details: []byte("{}"),
+		Actor: k.Name, ActorID: parseActorID(k.ID), Action: "dlq_purge", TargetID: &tid, Details: []byte("{}"),
 	})
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// revokeAPIKey — POST /v1/admin/api-keys/{id}/revoke
+//
+// Marks the target API key revoked in Postgres (UPDATE api_keys SET revoked_at
+// = now()) and writes a per-id revocation marker to Redis so the verified-key
+// auth cache stops honouring entries for that key on the very next request.
+//
+// Without the Redis marker, revocation took up to authCacheTTL (60s) to take
+// effect because the auth middleware was happy with a cached verify result;
+// with the marker, the cache hit re-checks `auth:revoked:<id>` (one cheap
+// EXISTS) and falls through to the DB on a hit, which already excludes
+// revoked rows.
+//
+// Self-revoke is allowed and is the recommended rotation pattern: an admin
+// key creates its successor (out of band), tests it, then revokes itself.
+//
+// Audit: writes a `key_revoke` row with the calling key as actor and the
+// revoked key id as target.
+func (h *adminHandler) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		WriteValidationProblem(w, r, []FieldError{{Field: "id", Message: "must be an api_key UUID"}})
+		return
+	}
+
+	if err := h.q.RevokeAPIKey(r.Context(), id); err != nil {
+		WriteErrorAsProblem(w, r, fmt.Errorf("revoke api key: %w", err))
+		return
+	}
+
+	// Best-effort cache-bust. The DB row is now revoked; the worst case if
+	// Redis is unavailable is the 60s natural-TTL fallback.
+	if h.rdb != nil {
+		_ = MarkKeyRevoked(r.Context(), h.rdb, id.String())
+	}
+
+	// Audit.
+	caller, _ := AuthedKeyFrom(r.Context())
+	tid := id.String()
+	details, _ := json.Marshal(map[string]any{
+		"revoked_via_cache_marker": h.rdb != nil,
+	})
+	_, _ = h.q.InsertAuditEntry(r.Context(), gen.InsertAuditEntryParams{
+		Actor:    caller.Name,
+		ActorID:  parseActorID(caller.ID),
+		Action:   "key_revoke",
+		TargetID: &tid,
+		Details:  details,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"id":     id,
+		"status": "revoked",
+		"cached": h.rdb != nil,
+	})
+}
+
+// parseActorID returns a uuid.NullUUID from the authedKey.ID string. Returns
+// invalid on parse error so the audit insert still succeeds (the text actor
+// remains for human-readable display).
+func parseActorID(s string) uuid.NullUUID {
+	u, err := uuid.Parse(s)
+	if err != nil {
+		return uuid.NullUUID{}
+	}
+	return uuid.NullUUID{UUID: u, Valid: true}
 }

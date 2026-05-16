@@ -64,11 +64,108 @@ func storeAuthCache(ctx context.Context, rdb *redis.Client, raw string, k authed
 	_ = rdb.Set(ctx, authCacheKey(raw), body, authCacheTTL).Err()
 }
 
-// invalidateAuthCache removes an entry. Call this from the admin revoke endpoint
-// so revocations propagate without waiting for TTL.
+// invalidateAuthCache removes an entry by raw bearer. Useful when the caller
+// has the raw key in hand (testing, dev seed rotation). Production revoke
+// flow uses MarkKeyRevoked instead because admins know the api_key_id, not
+// the raw bearer.
 func invalidateAuthCache(ctx context.Context, rdb *redis.Client, raw string) {
 	if rdb == nil {
 		return
 	}
 	_ = rdb.Del(ctx, authCacheKey(raw)).Err()
+}
+
+// authRevokedKey is the per-id revocation marker. Set by MarkKeyRevoked,
+// checked by the auth middleware after a cache hit. A short TTL keeps Redis
+// from accumulating markers; it just needs to outlive the auth-cache TTL so
+// every cached entry has been re-verified at least once since revocation.
+func authRevokedKey(apiKeyID string) string {
+	return "auth:revoked:" + apiKeyID
+}
+
+// authRevokedTTL — slightly longer than the auth cache TTL so any cached
+// authedKey that was minted just before revocation also gets re-verified
+// (and fails) before the marker disappears.
+const authRevokedTTL = 5 * time.Minute
+
+// authFailureWindow + authFailureLimit cap the per-prefix slow-path budget.
+// Without these, an attacker could brute-force the prefix space at one
+// argon2id verify (~50ms server work) per attempt — a CPU DoS more than a
+// credential attack. Counter resets after authFailureWindow with no failed
+// attempt.
+//
+// Cached hits and successful verifies do NOT count toward this budget; only
+// failed slow-path verifies and unknown-prefix lookups do. The legitimate
+// hot path is the cache, so a real client never trips this.
+const (
+	authFailureWindow = 60 * time.Second
+	authFailureLimit  = 20
+)
+
+// authFailureKey is the Redis key tracking failed slow-path attempts for a
+// bearer prefix. The prefix is non-secret (it's the public lookup
+// discriminator), so storing it in plain in the key is fine.
+func authFailureKey(prefix string) string {
+	return "auth:fail:" + prefix
+}
+
+// noteAuthFailure increments the per-prefix counter and returns true when
+// the limit has been exceeded (caller should 429 and skip the verify).
+// Best-effort: Redis errors fail open so a Redis outage doesn't lock everyone
+// out — the DB-side hashed compare still authenticates, just without the
+// brute-force gate. Worst case: revert to pre-fix behavior.
+func noteAuthFailure(ctx context.Context, rdb *redis.Client, prefix string) bool {
+	if rdb == nil {
+		return false
+	}
+	pipe := rdb.Pipeline()
+	incr := pipe.Incr(ctx, authFailureKey(prefix))
+	pipe.Expire(ctx, authFailureKey(prefix), authFailureWindow)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return false
+	}
+	return incr.Val() > authFailureLimit
+}
+
+// isAuthFailureLocked checks the counter without incrementing. Used to
+// 429 incoming requests once the budget is already exhausted, without
+// running argon2.
+func isAuthFailureLocked(ctx context.Context, rdb *redis.Client, prefix string) bool {
+	if rdb == nil {
+		return false
+	}
+	n, err := rdb.Get(ctx, authFailureKey(prefix)).Int64()
+	if err != nil {
+		return false
+	}
+	return n > authFailureLimit
+}
+
+// MarkKeyRevoked writes the per-id revocation marker. The admin revoke
+// endpoint calls this after updating Postgres so the auth hot path stops
+// honouring cached entries for this key immediately.
+//
+// Idempotent: safe to call twice. Returns nil if Redis is unavailable —
+// the DB revoke still took effect, the only cost is the up-to-60s tail until
+// the cache entry expires naturally.
+func MarkKeyRevoked(ctx context.Context, rdb *redis.Client, apiKeyID string) error {
+	if rdb == nil {
+		return nil
+	}
+	return rdb.Set(ctx, authRevokedKey(apiKeyID), "1", authRevokedTTL).Err()
+}
+
+// isKeyRevoked checks whether the per-id revocation marker is set.
+// Best-effort: on Redis error returns false (we'd rather honour a stale cache
+// than 401 every request during a Redis outage; the DB is the source of truth
+// and the cache will rotate out within authCacheTTL).
+func isKeyRevoked(ctx context.Context, rdb *redis.Client, apiKeyID string) bool {
+	if rdb == nil {
+		return false
+	}
+	n, err := rdb.Exists(ctx, authRevokedKey(apiKeyID)).Result()
+	if err != nil {
+		return false
+	}
+	return n > 0
 }
