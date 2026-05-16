@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 
+	"github.com/mertovun/event-driven-notification-system/internal/observability"
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 )
@@ -42,15 +43,16 @@ func Default(dispatcherID string) Config {
 
 // Dispatcher claims unpublished outbox rows and publishes them to RabbitMQ.
 type Dispatcher struct {
-	cfg    Config
-	pool   *pgxpool.Pool
-	q      *gen.Queries
-	pub    *queue.Publisher
-	logger *slog.Logger
+	cfg     Config
+	pool    *pgxpool.Pool
+	q       *gen.Queries
+	pub     *queue.Publisher
+	metrics *observability.Metrics
+	logger  *slog.Logger
 }
 
-func New(pool *pgxpool.Pool, q *gen.Queries, pub *queue.Publisher, logger *slog.Logger, cfg Config) *Dispatcher {
-	return &Dispatcher{cfg: cfg, pool: pool, q: q, pub: pub, logger: logger}
+func New(pool *pgxpool.Pool, q *gen.Queries, pub *queue.Publisher, metrics *observability.Metrics, logger *slog.Logger, cfg Config) *Dispatcher {
+	return &Dispatcher{cfg: cfg, pool: pool, q: q, pub: pub, metrics: metrics, logger: logger}
 }
 
 // Run loops until ctx is cancelled. One claim cycle per tick.
@@ -78,7 +80,11 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 }
 
 // tick claims a batch, publishes each row, and marks success / failure.
+// Also samples outbox_lag_seconds — the age of the oldest unpublished row —
+// so oncall has a single number to alert on when dispatch falls behind producers.
 func (d *Dispatcher) tick(ctx context.Context) error {
+	defer d.sampleLag(ctx)
+
 	dispID := d.cfg.DispatcherID
 	rows, err := d.q.ClaimOutboxBatch(ctx, gen.ClaimOutboxBatchParams{
 		ClaimTtlSeconds: int32(d.cfg.ClaimTTL.Seconds()),
@@ -97,6 +103,21 @@ func (d *Dispatcher) tick(ctx context.Context) error {
 		d.publishRow(ctx, row)
 	}
 	return nil
+}
+
+// sampleLag updates outbox_lag_seconds. Best-effort — a failed sample logs
+// and leaves the previous gauge value; alerting on the gauge being too old
+// is a Prometheus-side concern.
+func (d *Dispatcher) sampleLag(ctx context.Context) {
+	if d.metrics == nil {
+		return
+	}
+	lag, err := d.q.OutboxLagSeconds(ctx)
+	if err != nil {
+		d.logger.Warn("outbox lag sample failed", "err", err)
+		return
+	}
+	d.metrics.OutboxLagSeconds.Set(lag)
 }
 
 func (d *Dispatcher) publishRow(ctx context.Context, row gen.Outbox) {

@@ -96,7 +96,7 @@ func TestDeliveryEndToEnd(t *testing.T) {
 	dispID, _ := uuid.NewV7()
 	dCfg := outbox.Default(dispID.String())
 	dCfg.PollInterval = 100 * time.Millisecond
-	disp := outbox.New(pool, q, pub, logger, dCfg)
+	disp := outbox.New(pool, q, pub, nil, logger, dCfg)
 
 	// Worker manager — 2 workers per channel for the test. Re-use the same
 	// publisher as the outbox dispatcher so retry-tier publishing works.

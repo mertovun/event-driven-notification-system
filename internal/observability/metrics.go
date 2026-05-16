@@ -35,6 +35,11 @@ type Metrics struct {
 	// Queue depth — sampled periodically (Phase 5.4 optional)
 	QueueDepth *prometheus.GaugeVec
 
+	// Outbox lag (seconds since oldest unpublished row was created).
+	// Sampled by the outbox dispatcher on every tick. Single value, no labels —
+	// it's a per-process scalar.
+	OutboxLagSeconds prometheus.Gauge
+
 	// Idempotency replay (rare but high signal)
 	IdempotencyReplayTotal *prometheus.CounterVec
 
@@ -115,6 +120,11 @@ func NewMetrics() *Metrics {
 		Help: "Sampled RabbitMQ queue message count.",
 	}, []string{"queue", "priority"})
 
+	m.OutboxLagSeconds = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "outbox_lag_seconds",
+		Help: "Age (in seconds) of the oldest unpublished outbox row. 0 when the table is drained. Page if this stays above its SLO — the dispatcher has fallen behind the producers.",
+	})
+
 	m.IdempotencyReplayTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "idempotency_replay_total",
 		Help: "Idempotency-Key replays returned verbatim.",
@@ -138,6 +148,7 @@ func NewMetrics() *Metrics {
 		m.RateLimitThrottledTotal,
 		m.CircuitBreakerState,
 		m.QueueDepth,
+		m.OutboxLagSeconds,
 		m.IdempotencyReplayTotal,
 		m.BuildInfo,
 	} {

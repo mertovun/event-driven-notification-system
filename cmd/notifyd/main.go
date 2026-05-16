@@ -190,7 +190,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		cfgD := outbox.Default(dispID.String())
 		cfgD.PollInterval = cfg.OutboxPollInterval
 		cfgD.BatchSize = cfg.OutboxBatchSize
-		disp = outbox.New(pool, q, pub, logger, cfgD)
+		disp = outbox.New(pool, q, pub, metrics, logger, cfgD)
 
 		// Scheduled-notification poller. Shares the main pool — a dedicated
 		// pool was tested and made no difference to the bgreader hang

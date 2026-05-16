@@ -98,7 +98,7 @@ func TestOutboxEndToEnd(t *testing.T) {
 	dispID, _ := uuid.NewV7()
 	cfg := outbox.Default(dispID.String())
 	cfg.PollInterval = 100 * time.Millisecond
-	disp := outbox.New(pool, q, pub, logger, cfg)
+	disp := outbox.New(pool, q, pub, nil, logger, cfg)
 
 	dispCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
