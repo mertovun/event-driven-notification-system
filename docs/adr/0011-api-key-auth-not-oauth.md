@@ -1,4 +1,4 @@
-# ADR-0013: API key auth with scopes, not OAuth/OIDC
+# ADR-0011: API key auth with scopes, not OAuth/OIDC
 
 ## Status
 
@@ -15,7 +15,7 @@ Authorization is also coarse. Reads (`GET /v1/notifications`, status, history) a
 **API key in `Authorization: Bearer <key>` header, validated by middleware, gated by three scopes: `notifications:read`, `notifications:write`, `admin`.**
 
 - Keys are minted out-of-band. A seed migration adds one dev key for local work; the production minting path is an `admin`-scoped endpoint (and a matching CLI subcommand) that returns the plaintext once and never again.
-- Storage: an `api_keys` table with the **argon2id hash** of the key (parameters per ADR-0011), a non-secret `prefix` column (first 8 chars of the plaintext) for fast candidate lookup, `scopes text[]`, `created_at`, `revoked_at`, `last_used_at`.
+- Storage: an `api_keys` table with the **argon2id hash** of the key (parameters per ADR-0009), a non-secret `prefix` column (first 8 chars of the plaintext) for fast candidate lookup, `scopes text[]`, `created_at`, `revoked_at`, `last_used_at`.
 - Auth middleware: parse the `Authorization` header, narrow to one row via the prefix index, verify the argon2id hash, attach an `authedKey` value (id, scopes, prefix) to the request context. On any failure, 401 `application/problem+json` with no detail about which step failed.
 - Per-route authorization via a `RequireScope(scope)` middleware composed at mount time in `internal/api/router.go`. Admin routes are bare-minimum: nothing reaches them without `admin` in `authedKey.scopes`.
 

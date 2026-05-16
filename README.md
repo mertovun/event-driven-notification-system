@@ -77,29 +77,24 @@ curl http://localhost:8090/metrics | grep notifications_
 - **PostgreSQL + sqlc**, no ORM. → [ADR-0002](docs/adr/0002-postgres-with-sqlc.md)
 - **RabbitMQ** over Redis Streams / Kafka / Postgres-as-queue. → [ADR-0003](docs/adr/0003-rabbitmq-over-redis-streams.md)
 - **Redis** for rate-limit (Lua token bucket), idempotency, pub/sub — not as a queue. → [ADR-0004](docs/adr/0004-redis-for-rate-limit-and-idempotency.md)
-- **distroless + nonroot + read-only rootfs + cap_drop ALL** runtime. → [ADR-0007](docs/adr/0007-distroless-runtime.md)
-- **App runs migrations on boot**, atomic with deploy. → [ADR-0008](docs/adr/0008-app-runs-migrations.md)
-- **OpenTelemetry on by default**, trace context across the outbox boundary. → [ADR-0010](docs/adr/0010-tracing-on-by-default.md)
+- **App runs migrations on boot**, atomic with deploy. → [ADR-0007](docs/adr/0007-app-runs-migrations.md)
 
 **API contract**
 - **Cursor pagination** on `(created_at DESC, id DESC)`. → [ADR-0005](docs/adr/0005-cursor-pagination.md)
 - **Idempotency-Key** header, 24h TTL, body-hash canonicalization. → [ADR-0006](docs/adr/0006-idempotency-key-header.md)
-- **API key auth** with scopes, not OAuth/OIDC. → [ADR-0013](docs/adr/0013-api-key-auth-not-oauth.md)
-- **Chi router** over Go 1.22 stdlib patterns. → [ADR-0016](docs/adr/0016-chi-router.md)
-- **RFC 7807 Problem Details** for every error. → [ADR-0017](docs/adr/0017-rfc7807-problem-details.md)
+- **API key auth** with scopes, not OAuth/OIDC. → [ADR-0011](docs/adr/0011-api-key-auth-not-oauth.md)
+- **RFC 7807 Problem Details** for every error. → [ADR-0013](docs/adr/0013-rfc7807-problem-details.md)
 
 **Domain & flow**
-- **Transactional outbox** is primary; API never touches AMQP on the request path. → [ADR-0009](docs/adr/0009-transactional-outbox.md)
-- **Templates render at create-time**, not delivery-time. Retries produce identical wire bytes. → [ADR-0012](docs/adr/0012-template-render-at-create-time.md)
-- **webhook.site as the only provider**; no real Twilio/SES/FCM integration. → [ADR-0015](docs/adr/0015-webhook-site-as-provider-stub.md)
-- **DLQ replay resets the row in place**, not clone-with-`replay_of`. → [ADR-0019](docs/adr/0019-dlq-replay-reset-in-place.md)
-- **AMQP `prefetch=1`** per consumer; scale by worker count. → [ADR-0020](docs/adr/0020-amqp-prefetch-one.md)
+- **Transactional outbox** is primary; API never touches AMQP on the request path. → [ADR-0008](docs/adr/0008-transactional-outbox.md)
+- **Templates render at create-time**, not delivery-time. Retries produce identical wire bytes. → [ADR-0010](docs/adr/0010-template-render-at-create-time.md)
+- **DLQ replay resets the row in place**, not clone-with-`replay_of`. → [ADR-0014](docs/adr/0014-dlq-replay-reset-in-place.md)
+- **AMQP `prefetch=1`** per consumer; scale by worker count. → [ADR-0015](docs/adr/0015-amqp-prefetch-one.md)
 
 **Security & realtime**
-- **argon2id** API key hashing with prefix-narrowed lookup. → [ADR-0011](docs/adr/0011-argon2id-over-bcrypt.md)
-- **Verified-key cache** in Redis short-circuits argon2id on the hot path (60s TTL). → [ADR-0021](docs/adr/0021-verified-key-auth-cache.md)
-- **WebSocket** over Server-Sent Events for status push. → [ADR-0014](docs/adr/0014-websocket-over-sse.md)
-- **`coder/websocket`** library over `gorilla/websocket`. → [ADR-0018](docs/adr/0018-coder-websocket-library.md)
+- **argon2id** API key hashing with prefix-narrowed lookup. → [ADR-0009](docs/adr/0009-argon2id-over-bcrypt.md)
+- **Verified-key cache** in Redis short-circuits argon2id on the hot path (60s TTL). → [ADR-0016](docs/adr/0016-verified-key-auth-cache.md)
+- **WebSocket** over Server-Sent Events for status push. → [ADR-0012](docs/adr/0012-websocket-over-sse.md)
 
 ---
 

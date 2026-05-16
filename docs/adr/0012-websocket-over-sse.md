@@ -1,4 +1,4 @@
-# ADR-0014: WebSocket over Server-Sent Events for status push
+# ADR-0012: WebSocket over Server-Sent Events for status push
 
 ## Status
 
@@ -23,7 +23,7 @@ Expose status events over a **WebSocket** endpoint, `GET /v1/ws/notifications?fi
 - **Per-replica fan-out hub.** Each replica opens one Redis `SUBSCRIBE` against `events:notifications` and dispatches in-process to the connections whose filter matches. A 1000-client replica costs one Redis subscriber, not one per client.
 - **Liveness.** Server pings every 30s; if the client does not pong within 10s the connection is closed with `1011 Internal Error`. Graceful shutdown on SIGTERM sends `1001 Going Away` before draining.
 - **Slow-consumer eviction.** Each connection has a 256-message bounded send buffer. On overflow the server closes with `1008 Policy Violation` rather than blocking the hub or growing memory without bound. The client is expected to reconnect and rely on `GET /v1/notifications/{id}` for the state it missed — events are a latency optimisation, not a durable log.
-- **Event payload.** `{notification_id, channel, status, at, correlation_id}`. No recipient, no rendered content, no template variables. Same redaction discipline as structured logs (ADR-0010) — the websocket is an API surface and inherits the same PII rules.
+- **Event payload.** `{notification_id, channel, status, at, correlation_id}`. No recipient, no rendered content, no template variables. Same PII discipline as structured logs — the websocket is an API surface and inherits the same redaction rules.
 
 Implementation: `internal/ws/handler.go` (upgrade, auth, lifecycle), `internal/ws/hub.go` (Redis subscribe, in-process dispatch, eviction), `internal/ws/filter.go` (filter parser and matcher), `internal/events/publisher.go` (worker-side emit).
 

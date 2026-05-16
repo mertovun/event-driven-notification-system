@@ -1,4 +1,4 @@
-# ADR-0009: Transactional outbox, not direct publish
+# ADR-0008: Transactional outbox, not direct publish
 
 ## Status
 

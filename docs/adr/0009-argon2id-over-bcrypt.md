@@ -1,4 +1,4 @@
-# ADR-0011: argon2id over bcrypt for API keys
+# ADR-0009: argon2id over bcrypt for API keys
 
 ## Status
 

@@ -1,4 +1,4 @@
-# ADR-0012: Templates render at create-time, not delivery-time
+# ADR-0010: Templates render at create-time, not delivery-time
 
 ## Status
 

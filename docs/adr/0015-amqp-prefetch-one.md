@@ -1,4 +1,4 @@
-# ADR-0020: AMQP prefetch=1 per consumer; scale by worker count
+# ADR-0015: AMQP prefetch=1 per consumer; scale by worker count
 
 ## Status
 

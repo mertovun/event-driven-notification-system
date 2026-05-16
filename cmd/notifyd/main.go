@@ -165,7 +165,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	wsHub := ws.NewHub(rdb, logger)
 
 	if cfg.DevAPIKey != "" {
-		// Hard-fail in non-development environments. ADR-0013 promised this
+		// Hard-fail in non-development environments. ADR-0011 promised this
 		// guard; without it a committed .env containing the literal dev key
 		// would silently issue a fully-scoped credential in production.
 		// Operators who genuinely need the dev key in another environment
@@ -179,7 +179,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		logger.Info("dev api key seeded", "prefix", cfg.DevAPIKey[:8])
 	} else {
 		// No DEV_API_KEY set: do an audit pass to make sure no stale dev
-		// seed lingers in the api_keys table from a previous boot. ADR-0013
+		// seed lingers in the api_keys table from a previous boot. ADR-0011
 		// names this as the second half of the guard. We log a WARN rather
 		// than fail because the row may have been intentionally promoted
 		// (e.g., re-purposed by the operator) — but on-call should know.
@@ -218,7 +218,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		// because the pgx v5 bgreader wedge documented in KNOWN_ISSUES.md
 		// will hang the first worker that picks up a scheduled message.
 		// Operators opt in via SCHEDULER_ENABLED=true once they have a
-		// mitigation in place (or after the pgx fix lands). See ADR-0027.
+		// mitigation in place (or after the pgx fix lands).
 		if cfg.SchedulerEnabled {
 			schedID, _ := uuid.NewV7()
 			schedDsp = scheduler.New(pool, q, logger, scheduler.Default(schedID.String()))

@@ -1,4 +1,4 @@
-# ADR-0025: Admin key revocation endpoint and verified-key cache invalidation
+# ADR-0020: Admin key revocation endpoint and verified-key cache invalidation
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted (2026-05-16)
 
 ## Context
 
-[ADR-0021](0021-verified-key-auth-cache.md) added the verified-key cache to
+[ADR-0016](0016-verified-key-auth-cache.md) added the verified-key cache to
 avoid running argon2id on every authenticated request. The cache TTL is 60s,
 which means revoking a leaked key took **up to 60 seconds** to propagate
 through the cache — a real window for an attacker to keep authenticating
@@ -105,5 +105,5 @@ is bounded by the number of currently-active keys.
 - [`internal/api/admin.go`](../../internal/api/admin.go) — `revokeAPIKey` handler
 - [`internal/api/router.go`](../../internal/api/router.go) — route mount
 - [`internal/store/migrations/0007_audit_key_revoke.up.sql`](../../internal/store/migrations/0007_audit_key_revoke.up.sql) — schema follow-ups
-- [ADR-0021](0021-verified-key-auth-cache.md) — verified-key cache
-- [ADR-0024](0024-per-key-row-ownership.md) — per-key row ownership
+- [ADR-0016](0016-verified-key-auth-cache.md) — verified-key cache
+- [ADR-0019](0019-per-key-row-ownership.md) — per-key row ownership

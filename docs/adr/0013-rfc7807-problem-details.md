@@ -1,4 +1,4 @@
-# ADR-0017: RFC 7807 Problem Details for HTTP error responses
+# ADR-0013: RFC 7807 Problem Details for HTTP error responses
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted (2026-05-16)
 
 ## Context
 
-Every error response from the API needs a consistent shape: machine-readable enough for clients to branch on without parsing English, human-readable enough for an on-call operator to debug from a support ticket, and predictable enough that we can centralize the error-to-HTTP mapping in one place instead of letting handlers each invent their own envelope. We have validation failures, idempotency conflicts (ADR-0006), rate-limit rejections (ADR-0004), template-render errors (ADR-0012), and the usual not-found / invalid-state / timeout family. Without a single contract these accumulate as ad-hoc JSON shapes, each handler picking its own field names, and clients end up writing a switch over response bodies that breaks the next time someone adds an endpoint.
+Every error response from the API needs a consistent shape: machine-readable enough for clients to branch on without parsing English, human-readable enough for an on-call operator to debug from a support ticket, and predictable enough that we can centralize the error-to-HTTP mapping in one place instead of letting handlers each invent their own envelope. We have validation failures, idempotency conflicts (ADR-0006), rate-limit rejections (ADR-0004), template-render errors (ADR-0010), and the usual not-found / invalid-state / timeout family. Without a single contract these accumulate as ad-hoc JSON shapes, each handler picking its own field names, and clients end up writing a switch over response bodies that breaks the next time someone adds an endpoint.
 
 We need one envelope, one mapper, and one rule for handlers: return errors, do not write status codes.
 

@@ -15,7 +15,7 @@ type Config struct {
 	HTTPAddr string `envconfig:"HTTP_ADDR" default:":8080"`
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
 	// Env gates production-unsafe behaviour: when != "development", the
-	// startup refuses to seed the dev API key and fails loudly. ADR-0013
+	// startup refuses to seed the dev API key and fails loudly. ADR-0011
 	// promised this check; the panel review noted it was missing.
 	Env string `envconfig:"APP_ENV" default:"development"`
 
@@ -54,7 +54,7 @@ type Config struct {
 	// Scheduler feature flag. Off by default because the scheduled-notification
 	// path triggers the pgx v5 bgreader wedge documented in KNOWN_ISSUES.md.
 	// Operators who accept the risk (or test against a different driver
-	// version) enable it explicitly. ADR-0027 captures the decision.
+	// version) enable it explicitly.
 	SchedulerEnabled bool `envconfig:"SCHEDULER_ENABLED" default:"false"`
 }
 

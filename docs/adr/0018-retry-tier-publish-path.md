@@ -1,4 +1,4 @@
-# ADR-0023: Retry-tier publish path (TTL+DLX bounce, not nack-requeue)
+# ADR-0018: Retry-tier publish path (TTL+DLX bounce, not nack-requeue)
 
 ## Status
 
@@ -71,7 +71,7 @@ back to nack-requeue. Pre-fix behavior, but now only as a degraded fallback.
 **Positive — breaker recovery:**
 
 The breaker-open path now publishes to wait.5s instead of nack-requeue.
-The breaker is open for `Timeout=30s` ([ADR-0022](0022-circuit-breaker-thresholds.md)),
+The breaker is open for `Timeout=30s` ([ADR-0017](0017-circuit-breaker-thresholds.md)),
 so wait.5s is shorter than the breaker open duration. The message bounces
 back from wait.5s, the breaker is *still* open, it re-publishes to wait.5s
 again. After 6 bounces it's exhausted the 30s open window and the breaker
@@ -121,4 +121,4 @@ budget. Acceptable for the throughput envelope this system targets.
 - [`internal/queue/publisher.go`](../../internal/queue/publisher.go) — `PublishToWaitQueue` helper
 - [`internal/worker/pipeline.go`](../../internal/worker/pipeline.go) — `routeToRetryTier`
 - [ADR-0003](0003-rabbitmq-over-redis-streams.md) — RabbitMQ topology choice
-- [ADR-0022](0022-circuit-breaker-thresholds.md) — breaker thresholds
+- [ADR-0017](0017-circuit-breaker-thresholds.md) — breaker thresholds

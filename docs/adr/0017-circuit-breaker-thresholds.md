@@ -1,4 +1,4 @@
-# ADR-0022: Circuit breaker thresholds (per-channel, 5/50/20)
+# ADR-0017: Circuit breaker thresholds (per-channel, 5/50/20)
 
 ## Status
 
@@ -13,7 +13,7 @@ into a hard pause when the provider is degraded: instead of paying rate-limit
 the wait-tier queues (see [ADR-0003](0003-rabbitmq-over-redis-streams.md))
 absorb the in-flight work until the provider recovers.
 
-The original [ADR-0011](0011-argon2id-over-bcrypt.md) review flagged that the
+The original [ADR-0009](0009-argon2id-over-bcrypt.md) review flagged that the
 specific thresholds chosen — 5 consecutive failures OR ≥50% over 20 requests,
 30-second open state, 5 half-open trial requests — were undocumented. This
 ADR records the reasoning.
@@ -38,7 +38,7 @@ Settings ([`internal/worker/breaker.go`](../../internal/worker/breaker.go)):
 **Positive:**
 
 - Predictable behavior under provider degradation: the breaker opens, the
-  worker pipeline reverts to `queued`, the retry-tier wiring (ADR-0023)
+  worker pipeline reverts to `queued`, the retry-tier wiring (ADR-0018)
   publishes to `wait.5s/30s/5m`. Without the breaker, the rate-limit gate
   would pay full network cost per failed request.
 - Per-channel isolation: an SMS provider outage doesn't take down email
@@ -52,7 +52,7 @@ Settings ([`internal/worker/breaker.go`](../../internal/worker/breaker.go)):
 - One bad endpoint per channel breaks the channel for **every customer**
   using that channel. A real multi-tenant deploy would need per-tenant or
   per-region breakers; this is acceptable for the single-tenant scope
-  documented in [ADR-0013](0013-api-key-auth-not-oauth.md).
+  documented in [ADR-0011](0011-api-key-auth-not-oauth.md).
 - The 30s open duration means the wait.5s queue is effectively ineffective
   while a breaker is open — the open-state path skips the wait queue at all
   (we'd just hit the breaker again). The wait.30s and wait.5m tiers do
@@ -81,5 +81,5 @@ Settings ([`internal/worker/breaker.go`](../../internal/worker/breaker.go)):
 
 - [`internal/worker/breaker.go`](../../internal/worker/breaker.go)
 - [ADR-0003](0003-rabbitmq-over-redis-streams.md) — retry-tier topology
-- [ADR-0023](0023-retry-tier-publish-path.md) — retry-tier publish path
+- [ADR-0018](0018-retry-tier-publish-path.md) — retry-tier publish path
 - Sony's gobreaker docs: https://pkg.go.dev/github.com/sony/gobreaker

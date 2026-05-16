@@ -1,4 +1,4 @@
-# ADR-0021: Verified-key cache for the auth hot path
+# ADR-0016: Verified-key cache for the auth hot path
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted (2026-05-16)
 
 ## Context
 
-[ADR-0011](0011-argon2id-over-bcrypt.md) chose argon2id over bcrypt for API
+[ADR-0009](0009-argon2id-over-bcrypt.md) chose argon2id over bcrypt for API
 key storage, with parameters `time=2, memory=64MB, parallelism=1` calibrated
 to ~50 ms per verify on the target hardware. That cost is deliberate — it
 makes offline brute-force prohibitively expensive — but it dominates the
@@ -86,7 +86,7 @@ the cached schema without colliding with the old format.
   storm. Redis was already in the stack, so we use it.
 - **Lower argon2 parameters instead of caching.** Cuts the per-verify cost
   but does not eliminate it, and weakens the security posture documented in
-  [ADR-0011](0011-argon2id-over-bcrypt.md). The cache leaves the security
+  [ADR-0009](0009-argon2id-over-bcrypt.md). The cache leaves the security
   parameters untouched while removing the runtime cost.
 - **JWT or session tokens.** Larger change. Would still need a verification
   step (signature check) on every request, and the API contract is bearer
@@ -95,6 +95,6 @@ the cached schema without colliding with the old format.
 ## References
 
 - [PERFORMANCE.md](../../PERFORMANCE.md) Phase 1 & Phase 2 measurements
-- [ADR-0011: argon2id over bcrypt](0011-argon2id-over-bcrypt.md)
+- [ADR-0009: argon2id over bcrypt](0009-argon2id-over-bcrypt.md)
 - [`internal/api/auth_cache.go`](../../internal/api/auth_cache.go)
 - [`internal/api/auth_cache_test.go`](../../internal/api/auth_cache_test.go)

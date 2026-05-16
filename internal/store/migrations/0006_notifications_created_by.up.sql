@@ -9,7 +9,7 @@
 --
 -- Notes:
 --   * api_keys.id is the right key (UUID, immutable). name is free-text and
---     not unique — see ADR-0021 / audit-log review for the same critique.
+--     not unique — see ADR-0016 / audit-log review for the same critique.
 --   * SET NULL on delete: if a key is hard-deleted, the rows survive as
 --     "ownerless" rather than cascading the data loss. Operators should
 --     prefer revoke (revoked_at) over delete.

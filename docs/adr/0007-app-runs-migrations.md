@@ -1,4 +1,4 @@
-# ADR-0008: App runs migrations on boot
+# ADR-0007: App runs migrations on boot
 
 ## Status
 

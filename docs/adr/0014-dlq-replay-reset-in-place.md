@@ -1,4 +1,4 @@
-# ADR-0019: DLQ replay resets the row in place; no clone-with-replay_of
+# ADR-0014: DLQ replay resets the row in place; no clone-with-replay_of
 
 ## Status
 
@@ -8,7 +8,7 @@ Accepted (2026-05-16)
 
 `POST /v1/admin/dead-letters/{id}/replay` takes a dead-lettered notification and pushes it back through the pipeline. There are two coherent models for what "replay" means at the row level, and they have to be chosen once because every downstream consumer — status checks, reporting queries, the dashboard — depends on which one we picked.
 
-The first is **reset-in-place**: UPDATE the existing row to `status='pending'`, clear `attempt_count` and `last_error`, rotate the `correlation_id`, write a fresh outbox row, and let the normal dispatcher (ADR-0009) republish. The notification keeps its id.
+The first is **reset-in-place**: UPDATE the existing row to `status='pending'`, clear `attempt_count` and `last_error`, rotate the `correlation_id`, write a fresh outbox row, and let the normal dispatcher (ADR-0008) republish. The notification keeps its id.
 
 The second is **clone with `replay_of` link**: INSERT a new notification with a new id, set `replay_of = original_id`, write outbox for the new id, leave the original sitting in `dead_letter` forever as a tombstone.
 
@@ -45,4 +45,4 @@ The state transitions aren't sqlc-generated queries; the admin path uses `tx.Exe
 
 - **Clone with `replay_of`.** Preserves the original row verbatim, which is appealing for "immutable history" instincts. Rejected because every reporting query, every status check, and every dashboard would need to know about the chain. The history we actually want is already in `delivery_attempts` plus `admin_audit` — adding a `replay_of` linked list on `notifications` duplicates that information at the cost of making the primary table harder to query.
 - **Allow `failed → pending` too.** Tempting for operator convenience ("just replay everything that didn't send"). Rejected because `failed` carries permanent-failure semantics by design — a malformed recipient address won't become well-formed on retry, and surfacing it as a replay-eligible state invites the operator to mash the button on a class of failures that needs a different fix (correct the input, re-create the notification). The status taxonomy only works if the boundaries are enforced.
-- **Republish the existing outbox row instead of inserting a new one.** The old outbox row is `published_at IS NOT NULL` (that's how we got to `dead_letter` in the first place — the dispatcher gave up after N publishes). Resetting `published_at` on an existing row mixes the original publish history with the replay's, and the dispatcher's `WHERE published_at IS NULL` query becomes ambiguous. A fresh outbox row keeps each publish attempt as its own auditable record and matches how ADR-0009 reasons about the table.
+- **Republish the existing outbox row instead of inserting a new one.** The old outbox row is `published_at IS NOT NULL` (that's how we got to `dead_letter` in the first place — the dispatcher gave up after N publishes). Resetting `published_at` on an existing row mixes the original publish history with the replay's, and the dispatcher's `WHERE published_at IS NULL` query becomes ambiguous. A fresh outbox row keeps each publish attempt as its own auditable record and matches how ADR-0008 reasons about the table.

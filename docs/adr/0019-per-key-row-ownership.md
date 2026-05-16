@@ -1,4 +1,4 @@
-# ADR-0024: Per-key row ownership and admin scope as the bypass
+# ADR-0019: Per-key row ownership and admin scope as the bypass
 
 ## Status
 
@@ -9,7 +9,7 @@ Accepted (2026-05-16)
 The original notification schema had no `created_by` column. Any API key
 with `notifications:read` could `GET /v1/notifications/{id}` for any UUID
 and read recipient + content. The system is single-tenant by the
-[ADR-0013](0013-api-key-auth-not-oauth.md) threat model, but the API
+[ADR-0011](0011-api-key-auth-not-oauth.md) threat model, but the API
 **surface** is shaped like a SaaS: write a notification, scope read access
 to that notification, deny everyone else. The data model was a bug waiting
 for a second customer key to be issued.
@@ -91,5 +91,5 @@ enumerate UUIDs and learn which exist).
 - [`internal/store/migrations/0006_notifications_created_by.up.sql`](../../internal/store/migrations/0006_notifications_created_by.up.sql)
 - [`internal/store/queries/notifications.sql`](../../internal/store/queries/notifications.sql) — `*Scoped` queries
 - [`internal/api/notifications_batch.go`](../../internal/api/notifications_batch.go) — handler-side admin-vs-owner gating
-- [ADR-0013](0013-api-key-auth-not-oauth.md) — API key auth, scopes
-- [ADR-0025](0025-key-revocation-cache-bust.md) — revoking those keys
+- [ADR-0011](0011-api-key-auth-not-oauth.md) — API key auth, scopes
+- [ADR-0020](0020-key-revocation-cache-bust.md) — revoking those keys

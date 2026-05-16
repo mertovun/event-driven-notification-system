@@ -54,7 +54,7 @@ type Querier interface {
 	GetNotificationsByBatchIDScoped(ctx context.Context, arg GetNotificationsByBatchIDScopedParams) ([]Notification, error)
 	GetTemplateByID(ctx context.Context, id uuid.UUID) (Template, error)
 	// Audit query: returns true when an active 'dev-seed' row exists. Used by
-	// the startup guard (ADR-0013) to warn when a production deploy is running
+	// the startup guard (ADR-0011) to warn when a production deploy is running
 	// against a database that still carries the dev key — even if DEV_API_KEY
 	// is unset, the row remains valid until revoked.
 	HasDevSeedRow(ctx context.Context) (bool, error)

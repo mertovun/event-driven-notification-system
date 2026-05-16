@@ -52,7 +52,7 @@ flat  flat%   sum%        cum   cum%
 ```
 
 This is **not a bug**. It is the design from
-[ADR-0011](docs/adr/0011-argon2id-over-bcrypt.md): argon2id is memory-hard
+[ADR-0009](docs/adr/0009-argon2id-over-bcrypt.md): argon2id is memory-hard
 with `time=2, memory=64MB, parallelism=1`, tuned to consume ~50ms per verify.
 The profile confirms this is exactly what is happening, and at 50 RPS we burn
 ~50ms × 50 = 2.5 CPU-seconds per wall-clock second, or **~2.5 cores' worth

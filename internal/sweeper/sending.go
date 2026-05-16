@@ -1,6 +1,6 @@
 // Package sweeper holds background reclaim loops for notifications stranded
 // by a worker crash. Currently a single reclaim path: rows stuck in 'sending'
-// after a worker died between MarkSendingCAS and MarkSent. See ADR-0026.
+// after a worker died between MarkSendingCAS and MarkSent.
 package sweeper
 
 import (

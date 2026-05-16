@@ -254,7 +254,7 @@ paths:
       description: |
         Resets the notification row in place (status → pending, attempt_count → 0,
         last_error → NULL, correlation_id rotated) and writes a fresh outbox row.
-        Audited under `dlq_replay`. See ADR-0019 for the reset-in-place vs
+        Audited under `dlq_replay`. See ADR-0014 for the reset-in-place vs
         clone-with-replay_of trade-off.
       tags: [Admin]
       parameters:
@@ -278,7 +278,7 @@ paths:
         Marks the row revoked in Postgres and writes a per-id revocation marker
         to Redis so the auth hot path stops honouring cached entries on the next
         request. Without the marker, revocation took up to 60s to propagate
-        through the verified-key cache. See ADR-0021.
+        through the verified-key cache. See ADR-0016.
       tags: [Admin]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
@@ -305,7 +305,7 @@ paths:
         construction — payload contains notification_id, batch_id, channel,
         status, at, correlation_id only. Per-replica fan-out (each WS client
         gets every event matching its filter; no cross-replica deduplication
-        — see ADR-0014).
+        — see ADR-0012).
       tags: [WebSocket]
       parameters:
         - { in: query, name: batch_id, schema: { type: string, format: uuid } }
