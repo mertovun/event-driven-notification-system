@@ -72,6 +72,7 @@ func (h *templatesHandler) create(w http.ResponseWriter, r *http.Request) {
 		Version:      1,
 		Body:         req.Body,
 		RequiredVars: requiredVars,
+		CreatedBy:    ownerFromCtx(r.Context()),
 	})
 	if err != nil {
 		WriteErrorAsProblem(w, r, fmt.Errorf("insert template: %w", err))
@@ -83,7 +84,8 @@ func (h *templatesHandler) create(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(templateRowToResponse(row))
 }
 
-// get handles GET /v1/templates/{id}.
+// get handles GET /v1/templates/{id}. Owner-or-admin gated; cross-key reads
+// surface as 404 to deny existence-oracle behaviour.
 func (h *templatesHandler) get(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -98,6 +100,15 @@ func (h *templatesHandler) get(w http.ResponseWriter, r *http.Request) {
 		}
 		WriteErrorAsProblem(w, r, fmt.Errorf("get template: %w", err))
 		return
+	}
+	// Admin sees everything; non-admin only sees their own rows. Templates
+	// pre-dating the created_by column (NULL) are admin-only.
+	if k, ok := AuthedKeyFrom(r.Context()); !ok || !k.HasScope(ScopeAdmin) {
+		owner := ownerFromCtx(r.Context())
+		if !owner.Valid || !row.CreatedBy.Valid || row.CreatedBy.UUID != owner.UUID {
+			WriteErrorAsProblem(w, r, notification.ErrTemplateNotFound)
+			return
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(templateRowToResponse(row))
@@ -121,7 +132,24 @@ func (h *templatesHandler) list(w http.ResponseWriter, r *http.Request) {
 		}
 		limit = n
 	}
-	rows, err := h.q.ListActiveTemplates(r.Context(), int32(limit))
+
+	// Non-admin sees only its own templates. Admin bypasses scope for
+	// support/audit visibility.
+	var rows []gen.Template
+	var err error
+	if k, ok := AuthedKeyFrom(r.Context()); ok && k.HasScope(ScopeAdmin) {
+		rows, err = h.q.ListActiveTemplates(r.Context(), int32(limit))
+	} else {
+		owner := ownerFromCtx(r.Context())
+		if !owner.Valid {
+			rows = nil
+		} else {
+			rows, err = h.q.ListActiveTemplatesScoped(r.Context(), gen.ListActiveTemplatesScopedParams{
+				CreatedBy: owner,
+				PageLimit: int32(limit),
+			})
+		}
+	}
 	if err != nil {
 		WriteErrorAsProblem(w, r, fmt.Errorf("list templates: %w", err))
 		return
@@ -164,13 +192,31 @@ func (h *templatesHandler) put(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row, err := h.q.BumpTemplateVersion(r.Context(), gen.BumpTemplateVersionParams{
-		ID:           id,
-		Body:         req.Body,
-		RequiredVars: requiredVars,
-	})
+	// Owner-or-admin gate. Cross-key template mutation was a
+	// stored-template-injection vector flagged in the panel review.
+	var row gen.Template
+	if k, ok := AuthedKeyFrom(r.Context()); ok && k.HasScope(ScopeAdmin) {
+		row, err = h.q.BumpTemplateVersion(r.Context(), gen.BumpTemplateVersionParams{
+			ID:           id,
+			Body:         req.Body,
+			RequiredVars: requiredVars,
+		})
+	} else {
+		owner := ownerFromCtx(r.Context())
+		if !owner.Valid {
+			WriteErrorAsProblem(w, r, notification.ErrTemplateNotFound)
+			return
+		}
+		row, err = h.q.BumpTemplateVersionScoped(r.Context(), gen.BumpTemplateVersionScopedParams{
+			ID:           id,
+			Body:         req.Body,
+			RequiredVars: requiredVars,
+			CreatedBy:    owner,
+		})
+	}
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			// 404 covers both not-found and not-owned (no existence oracle).
 			WriteErrorAsProblem(w, r, notification.ErrTemplateNotFound)
 			return
 		}
@@ -189,9 +235,30 @@ func (h *templatesHandler) del(w http.ResponseWriter, r *http.Request) {
 		WriteValidationProblem(w, r, []FieldError{{Field: "id", Message: "must be a UUID"}})
 		return
 	}
-	if err := h.q.DeprecateTemplate(r.Context(), id); err != nil {
-		WriteErrorAsProblem(w, r, fmt.Errorf("deprecate template: %w", err))
-		return
+	// Owner-or-admin gate.
+	if k, ok := AuthedKeyFrom(r.Context()); ok && k.HasScope(ScopeAdmin) {
+		if err := h.q.DeprecateTemplate(r.Context(), id); err != nil {
+			WriteErrorAsProblem(w, r, fmt.Errorf("deprecate template: %w", err))
+			return
+		}
+	} else {
+		owner := ownerFromCtx(r.Context())
+		if !owner.Valid {
+			WriteErrorAsProblem(w, r, notification.ErrTemplateNotFound)
+			return
+		}
+		n, err := h.q.DeprecateTemplateScoped(r.Context(), gen.DeprecateTemplateScopedParams{
+			ID:        id,
+			CreatedBy: owner,
+		})
+		if err != nil {
+			WriteErrorAsProblem(w, r, fmt.Errorf("deprecate template: %w", err))
+			return
+		}
+		if n == 0 {
+			WriteErrorAsProblem(w, r, notification.ErrTemplateNotFound)
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

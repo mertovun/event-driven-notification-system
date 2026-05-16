@@ -12,7 +12,11 @@ import (
 )
 
 type Querier interface {
+	// Unscoped variant — admin-only path.
 	BumpTemplateVersion(ctx context.Context, arg BumpTemplateVersionParams) (Template, error)
+	// Owner-scoped variant: rejects mutations on templates the caller doesn't own.
+	// Returns 0 rows on either "not found" or "not owned"; handler maps to 404.
+	BumpTemplateVersionScoped(ctx context.Context, arg BumpTemplateVersionScopedParams) (Template, error)
 	// CAS-style: only transitions pending or queued → cancelled.
 	// Returns the updated row; 0 rows means someone else already moved it OR the
 	// caller doesn't own it. Owner check is on (id, created_by) so a non-admin
@@ -31,7 +35,10 @@ type Querier interface {
 	DeleteDeadLetter(ctx context.Context, notificationID uuid.UUID) error
 	DeletePublishedOutboxBefore(ctx context.Context, publishedAt pgtype.Timestamptz) error
 	DeleteScheduled(ctx context.Context, id uuid.UUID) error
+	// Unscoped — admin-only path.
 	DeprecateTemplate(ctx context.Context, id uuid.UUID) error
+	// Owner-scoped variant. Returns 0 affected on not-found / not-owned.
+	DeprecateTemplateScoped(ctx context.Context, arg DeprecateTemplateScopedParams) (int64, error)
 	GetActiveAPIKeyByHash(ctx context.Context, hashedKey string) (ApiKey, error)
 	GetActiveTemplateByNameChannel(ctx context.Context, arg GetActiveTemplateByNameChannelParams) (Template, error)
 	GetBatchByID(ctx context.Context, id uuid.UUID) (Batch, error)
@@ -65,6 +72,8 @@ type Querier interface {
 	// The middleware then runs argon2.Verify on each candidate (typically 1).
 	ListActiveAPIKeysByPrefix(ctx context.Context, keyPrefix string) ([]ApiKey, error)
 	ListActiveTemplates(ctx context.Context, pageLimit int32) ([]Template, error)
+	// Non-admin callers see only their own templates.
+	ListActiveTemplatesScoped(ctx context.Context, arg ListActiveTemplatesScopedParams) ([]Template, error)
 	ListDeadLetters(ctx context.Context, arg ListDeadLettersParams) ([]DeadLetter, error)
 	ListRecentAuditEntries(ctx context.Context, pageLimit int32) ([]AdminAudit, error)
 	MarkDeadLetter(ctx context.Context, arg MarkDeadLetterParams) (Notification, error)

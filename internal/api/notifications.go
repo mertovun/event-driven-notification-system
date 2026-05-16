@@ -106,6 +106,16 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 			WriteErrorAsProblem(w, r, fmt.Errorf("get template: %w", err))
 			return
 		}
+		// Owner-or-admin gate. A template created by key A cannot be rendered
+		// by key B unless B has admin scope. Templates pre-dating the
+		// created_by column (NULL) are admin-only.
+		if k, ok := AuthedKeyFrom(r.Context()); !ok || !k.HasScope(ScopeAdmin) {
+			owner := ownerFromCtx(r.Context())
+			if !owner.Valid || !row.CreatedBy.Valid || row.CreatedBy.UUID != owner.UUID {
+				WriteErrorAsProblem(w, r, notification.ErrTemplateNotFound)
+				return
+			}
+		}
 		if row.DeprecatedAt.Valid {
 			WriteValidationProblem(w, r, []FieldError{{Field: "template_id", Message: "template is deprecated"}})
 			return

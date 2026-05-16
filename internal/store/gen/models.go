@@ -114,4 +114,5 @@ type Template struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 	DeprecatedAt pgtype.Timestamptz `json:"deprecated_at"`
+	CreatedBy    uuid.NullUUID      `json:"created_by"`
 }

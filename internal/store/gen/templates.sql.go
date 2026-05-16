@@ -15,7 +15,7 @@ const bumpTemplateVersion = `-- name: BumpTemplateVersion :one
 UPDATE templates
 SET body = $2, required_vars = $3, version = version + 1, updated_at = now()
 WHERE id = $1 AND deprecated_at IS NULL
-RETURNING id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at
+RETURNING id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at, created_by
 `
 
 type BumpTemplateVersionParams struct {
@@ -24,6 +24,7 @@ type BumpTemplateVersionParams struct {
 	RequiredVars []string  `json:"required_vars"`
 }
 
+// Unscoped variant — admin-only path.
 func (q *Queries) BumpTemplateVersion(ctx context.Context, arg BumpTemplateVersionParams) (Template, error) {
 	row := q.db.QueryRow(ctx, bumpTemplateVersion, arg.ID, arg.Body, arg.RequiredVars)
 	var i Template
@@ -37,6 +38,46 @@ func (q *Queries) BumpTemplateVersion(ctx context.Context, arg BumpTemplateVersi
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeprecatedAt,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
+const bumpTemplateVersionScoped = `-- name: BumpTemplateVersionScoped :one
+UPDATE templates
+SET body = $2, required_vars = $3, version = version + 1, updated_at = now()
+WHERE id = $1 AND created_by = $4 AND deprecated_at IS NULL
+RETURNING id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at, created_by
+`
+
+type BumpTemplateVersionScopedParams struct {
+	ID           uuid.UUID     `json:"id"`
+	Body         string        `json:"body"`
+	RequiredVars []string      `json:"required_vars"`
+	CreatedBy    uuid.NullUUID `json:"created_by"`
+}
+
+// Owner-scoped variant: rejects mutations on templates the caller doesn't own.
+// Returns 0 rows on either "not found" or "not owned"; handler maps to 404.
+func (q *Queries) BumpTemplateVersionScoped(ctx context.Context, arg BumpTemplateVersionScopedParams) (Template, error) {
+	row := q.db.QueryRow(ctx, bumpTemplateVersionScoped,
+		arg.ID,
+		arg.Body,
+		arg.RequiredVars,
+		arg.CreatedBy,
+	)
+	var i Template
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Channel,
+		&i.Version,
+		&i.Body,
+		&i.RequiredVars,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeprecatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -45,13 +86,33 @@ const deprecateTemplate = `-- name: DeprecateTemplate :exec
 UPDATE templates SET deprecated_at = now() WHERE id = $1 AND deprecated_at IS NULL
 `
 
+// Unscoped — admin-only path.
 func (q *Queries) DeprecateTemplate(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deprecateTemplate, id)
 	return err
 }
 
+const deprecateTemplateScoped = `-- name: DeprecateTemplateScoped :execrows
+UPDATE templates SET deprecated_at = now()
+WHERE id = $1 AND created_by = $2 AND deprecated_at IS NULL
+`
+
+type DeprecateTemplateScopedParams struct {
+	ID        uuid.UUID     `json:"id"`
+	CreatedBy uuid.NullUUID `json:"created_by"`
+}
+
+// Owner-scoped variant. Returns 0 affected on not-found / not-owned.
+func (q *Queries) DeprecateTemplateScoped(ctx context.Context, arg DeprecateTemplateScopedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deprecateTemplateScoped, arg.ID, arg.CreatedBy)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getActiveTemplateByNameChannel = `-- name: GetActiveTemplateByNameChannel :one
-SELECT id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at FROM templates
+SELECT id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at, created_by FROM templates
 WHERE name = $1 AND channel = $2 AND deprecated_at IS NULL
 ORDER BY version DESC
 LIMIT 1
@@ -75,12 +136,13 @@ func (q *Queries) GetActiveTemplateByNameChannel(ctx context.Context, arg GetAct
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeprecatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
 
 const getTemplateByID = `-- name: GetTemplateByID :one
-SELECT id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at FROM templates WHERE id = $1
+SELECT id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at, created_by FROM templates WHERE id = $1
 `
 
 func (q *Queries) GetTemplateByID(ctx context.Context, id uuid.UUID) (Template, error) {
@@ -96,22 +158,24 @@ func (q *Queries) GetTemplateByID(ctx context.Context, id uuid.UUID) (Template, 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeprecatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
 
 const insertTemplate = `-- name: InsertTemplate :one
-INSERT INTO templates (name, channel, version, body, required_vars)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at
+INSERT INTO templates (name, channel, version, body, required_vars, created_by)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at, created_by
 `
 
 type InsertTemplateParams struct {
-	Name         string   `json:"name"`
-	Channel      string   `json:"channel"`
-	Version      int32    `json:"version"`
-	Body         string   `json:"body"`
-	RequiredVars []string `json:"required_vars"`
+	Name         string        `json:"name"`
+	Channel      string        `json:"channel"`
+	Version      int32         `json:"version"`
+	Body         string        `json:"body"`
+	RequiredVars []string      `json:"required_vars"`
+	CreatedBy    uuid.NullUUID `json:"created_by"`
 }
 
 func (q *Queries) InsertTemplate(ctx context.Context, arg InsertTemplateParams) (Template, error) {
@@ -121,6 +185,7 @@ func (q *Queries) InsertTemplate(ctx context.Context, arg InsertTemplateParams) 
 		arg.Version,
 		arg.Body,
 		arg.RequiredVars,
+		arg.CreatedBy,
 	)
 	var i Template
 	err := row.Scan(
@@ -133,12 +198,13 @@ func (q *Queries) InsertTemplate(ctx context.Context, arg InsertTemplateParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeprecatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
 
 const listActiveTemplates = `-- name: ListActiveTemplates :many
-SELECT id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at FROM templates
+SELECT id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at, created_by FROM templates
 WHERE deprecated_at IS NULL
 ORDER BY created_at DESC, id DESC
 LIMIT $1::int
@@ -163,6 +229,51 @@ func (q *Queries) ListActiveTemplates(ctx context.Context, pageLimit int32) ([]T
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeprecatedAt,
+			&i.CreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listActiveTemplatesScoped = `-- name: ListActiveTemplatesScoped :many
+SELECT id, name, channel, version, body, required_vars, created_at, updated_at, deprecated_at, created_by FROM templates
+WHERE deprecated_at IS NULL AND created_by = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2::int
+`
+
+type ListActiveTemplatesScopedParams struct {
+	CreatedBy uuid.NullUUID `json:"created_by"`
+	PageLimit int32         `json:"page_limit"`
+}
+
+// Non-admin callers see only their own templates.
+func (q *Queries) ListActiveTemplatesScoped(ctx context.Context, arg ListActiveTemplatesScopedParams) ([]Template, error) {
+	rows, err := q.db.Query(ctx, listActiveTemplatesScoped, arg.CreatedBy, arg.PageLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Template{}
+	for rows.Next() {
+		var i Template
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Channel,
+			&i.Version,
+			&i.Body,
+			&i.RequiredVars,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeprecatedAt,
+			&i.CreatedBy,
 		); err != nil {
 			return nil, err
 		}
