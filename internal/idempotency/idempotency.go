@@ -16,8 +16,14 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// DefaultTTL is the idempotency window (24h).
+// DefaultTTL is the post-Finalize idempotency window (24h).
 const DefaultTTL = 24 * time.Hour
+
+// InFlightTTL is the short window during which a request is allowed to
+// finish before the slot is considered abandoned. Matches ADR-0006: a
+// crashed handler unwedges the key in InFlightTTL rather than the full
+// DefaultTTL.
+const InFlightTTL = 10 * time.Second
 
 // Sentinels surfaced to the API mapper. See internal/notification/errors.go for the
 // canonical domain sentinels; we wrap our store errors with those at call sites.
@@ -109,7 +115,18 @@ func canonicalize(v any) (any, error) {
 	}
 }
 
-func key(idemKey string) string { return "idem:" + idemKey }
+// key namespaces the idempotency cache by api_key_id when ownerID is non-empty.
+// Without a per-owner prefix, two API keys submitting Idempotency-Key: "abc"
+// with different bodies would either collide (409) or worse, replay each
+// other's responses. Pre-existing single-tenant keys with ownerID == "" fall
+// back to the legacy "idem:<key>" format for backwards compatibility — there
+// shouldn't be any in production but the code shouldn't panic on them.
+func key(ownerID, idemKey string) string {
+	if ownerID == "" {
+		return "idem:" + idemKey
+	}
+	return "idem:" + ownerID + ":" + idemKey
+}
 
 // BeginOrReplay attempts to claim the idempotency key with an in-flight marker.
 // Returns (replay=nil, ok=true) when the caller now owns the slot and should proceed
@@ -117,17 +134,26 @@ func key(idemKey string) string { return "idem:" + idemKey }
 // Returns (replay=non-nil) when an existing record matches the same body — replay it verbatim.
 // Returns ErrConflict when an existing record has a different body hash.
 // Returns ErrInFlight when an earlier request with this key is still being processed.
-func (s *Store) BeginOrReplay(ctx context.Context, idemKey, bodyHash string) (replay *Record, err error) {
+//
+// Two TTLs apply:
+//   - Initial SETNX uses InFlightTTL (10s) so a crashed handler unwedges
+//     the slot in seconds instead of 24h.
+//   - Finalize re-SETs the slot with the long DefaultTTL (24h) for replays.
+//
+// ownerID scopes the cache by the authenticated api_key_id; "" falls back to
+// the legacy single-tenant namespace for test/migration paths.
+func (s *Store) BeginOrReplay(ctx context.Context, ownerID, idemKey, bodyHash string) (replay *Record, err error) {
 	if idemKey == "" {
 		return nil, errors.New("empty idempotency key")
 	}
 
-	k := key(idemKey)
+	k := key(ownerID, idemKey)
 
-	// Atomic claim attempt: SET NX with in-flight marker carrying our body hash.
+	// Atomic claim attempt: SET NX with in-flight marker carrying our body
+	// hash. Short TTL on the claim so a crashed handler unwedges quickly.
 	inFlight := &Record{BodyHash: bodyHash, InFlight: true}
 	raw, _ := json.Marshal(inFlight)
-	ok, err := s.rdb.SetNX(ctx, k, raw, s.ttl).Result()
+	ok, err := s.rdb.SetNX(ctx, k, raw, InFlightTTL).Result()
 	if err != nil {
 		return nil, fmt.Errorf("setnx: %w", err)
 	}
@@ -159,18 +185,19 @@ func (s *Store) BeginOrReplay(ctx context.Context, idemKey, bodyHash string) (re
 }
 
 // Finalize stores the canonical response so future replays can return it verbatim.
-func (s *Store) Finalize(ctx context.Context, idemKey string, rec Record) error {
+// Refreshes the TTL to s.ttl (the long replay window) so an in-flight claim
+// that's now complete survives the InFlightTTL ceiling.
+func (s *Store) Finalize(ctx context.Context, ownerID, idemKey string, rec Record) error {
 	rec.InFlight = false
 	raw, err := json.Marshal(rec)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
-	// Refresh TTL on finalize to match the spec's "24h from final write".
-	return s.rdb.Set(ctx, key(idemKey), raw, s.ttl).Err()
+	return s.rdb.Set(ctx, key(ownerID, idemKey), raw, s.ttl).Err()
 }
 
 // Release deletes the in-flight marker. Use this when the handler decided NOT to
 // persist a canonical response (e.g., the work failed before status was determined).
-func (s *Store) Release(ctx context.Context, idemKey string) error {
-	return s.rdb.Del(ctx, key(idemKey)).Err()
+func (s *Store) Release(ctx context.Context, ownerID, idemKey string) error {
+	return s.rdb.Del(ctx, key(ownerID, idemKey)).Err()
 }

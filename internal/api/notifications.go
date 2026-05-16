@@ -135,7 +135,12 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 	corrID := CorrelationIDFrom(r.Context())
 	idemKey := r.Header.Get("Idempotency-Key")
 
-	// Idempotency claim (if a key was supplied).
+	// Idempotency claim (if a key was supplied). Scoped by api_key_id so two
+	// different keys submitting the same Idempotency-Key value don't collide.
+	idemOwner := ""
+	if owner := ownerFromCtx(r.Context()); owner.Valid {
+		idemOwner = owner.UUID.String()
+	}
 	var idemBodyHash string
 	if idemKey != "" {
 		hash, err := idempotency.CanonicalHash(req)
@@ -145,7 +150,7 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 		}
 		idemBodyHash = hash
 
-		replay, err := h.idem.BeginOrReplay(r.Context(), idemKey, idemBodyHash)
+		replay, err := h.idem.BeginOrReplay(r.Context(), idemOwner, idemKey, idemBodyHash)
 		switch {
 		case errors.Is(err, idempotency.ErrConflict):
 			WriteErrorAsProblem(w, r, notification.ErrIdempotencyConflict)
@@ -171,7 +176,7 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 		// We own the in-flight slot. If anything below fails, release it so retries can proceed.
 		defer func() {
 			if r.Context().Err() != nil { // best-effort release on cancel
-				_ = h.idem.Release(context.Background(), idemKey)
+				_ = h.idem.Release(context.Background(), idemOwner, idemKey)
 			}
 		}()
 	}
@@ -179,7 +184,7 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 	resp, status, err := h.persist(r.Context(), req, idemKey, corrID, templateVersion)
 	if err != nil {
 		if idemKey != "" {
-			_ = h.idem.Release(r.Context(), idemKey)
+			_ = h.idem.Release(r.Context(), idemOwner, idemKey)
 		}
 		WriteErrorAsProblem(w, r, err)
 		return
@@ -193,7 +198,7 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	// Finalize idempotency before responding so a fast retry sees the canonical body.
 	if idemKey != "" {
-		_ = h.idem.Finalize(r.Context(), idemKey, idempotency.Record{
+		_ = h.idem.Finalize(r.Context(), idemOwner, idemKey, idempotency.Record{
 			BodyHash:   idemBodyHash,
 			StatusCode: status,
 			Body:       body,
