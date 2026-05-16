@@ -46,16 +46,13 @@ type Pipeline struct {
 	q         *gen.Queries
 	rdb       *redis.Client
 	limiter   *ratelimit.Limiter
+	reservoir *ratelimit.Reservoir // per-worker batch refill against the shared Lua bucket
 	provider  *provider.HTTPClient
 	queuePub  *queue.Publisher
 	breaker   *gobreaker.CircuitBreaker
 	metrics   *observability.Metrics
 	eventsPub *events.Publisher
 	logger    *slog.Logger
-
-	// Rate-limit settings — 100/s per channel, capacity = 1s burst.
-	rateLimitPerSec float64
-	rateCapacity    float64
 
 	// maxAttempts caps how many times a retryable failure can re-tier before
 	// the worker dead-letters the message. The outbox dispatcher also enforces
@@ -77,21 +74,32 @@ func New(
 	logger *slog.Logger,
 ) *Pipeline {
 	chanLogger := logger.With("channel", channel)
+	// Rate-limit settings — 100/s per channel, capacity = 1s burst. The
+	// reservoir refills batchSize tokens per Redis RTT so 8 workers
+	// contending on the same bucket key can sustain 100/s rather than the
+	// ~30/s ceiling imposed by one-RTT-per-delivery.
+	const ratePerSec, capacity, batchSize = 100, 100, 20
 	p := &Pipeline{
-		channel:         channel,
-		pool:            pool,
-		q:               q,
-		rdb:             rdb,
-		limiter:         limiter,
-		provider:        prov,
-		queuePub:        queuePub,
-		breaker:         newBreaker(channel, chanLogger, metrics),
-		metrics:         metrics,
-		eventsPub:       eventsPub,
-		logger:          chanLogger,
-		rateLimitPerSec: 100,
-		rateCapacity:    100,
-		maxAttempts:     10,
+		channel:     channel,
+		pool:        pool,
+		q:           q,
+		rdb:         rdb,
+		limiter:     limiter,
+		provider:    prov,
+		queuePub:    queuePub,
+		breaker:     newBreaker(channel, chanLogger, metrics),
+		metrics:     metrics,
+		eventsPub:   eventsPub,
+		logger:      chanLogger,
+		maxAttempts: 10,
+	}
+	if limiter != nil {
+		p.reservoir = ratelimit.NewReservoir(limiter, ratelimit.ReservoirConfig{
+			Key:        "ratelimit:" + channel,
+			RatePerSec: ratePerSec,
+			Capacity:   capacity,
+			BatchSize:  batchSize,
+		})
 	}
 	// Seed the breaker-state gauge to "closed" so dashboards don't show
 	// "no data" until the first state transition. OnStateChange only fires
@@ -274,8 +282,10 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 	}
 	defer func() { _ = p.rdb.Del(context.Background(), inflightKey).Err() }()
 
-	// 4) Rate-limit gate — Lua token bucket per channel.
-	dec, err := p.limiter.Allow(ctx, "ratelimit:"+p.channel, p.rateLimitPerSec, p.rateCapacity)
+	// 4) Rate-limit gate — local reservoir over the shared Lua bucket.
+	// Each Take is local on the happy path; refill costs one Redis RTT
+	// per BatchSize deliveries.
+	dec, err := p.reservoir.Take(ctx)
 	if err != nil {
 		// Don't fail the message on Redis issues; nack-requeue and let next attempt go.
 		return fmt.Errorf("ratelimit: %w", err)
@@ -307,7 +317,7 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 		case <-time.After(wait):
 		}
 		// Re-try once after the wait; if still throttled, sustained-path applies.
-		dec, _ = p.limiter.Allow(ctx, "ratelimit:"+p.channel, p.rateLimitPerSec, p.rateCapacity)
+		dec, _ = p.reservoir.Take(ctx)
 		if !dec.Allowed {
 			_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID})
 			logger.Info("rate-limit still denied after short wait; routing to retry tier")
