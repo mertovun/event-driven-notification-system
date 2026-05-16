@@ -16,11 +16,13 @@ const cancelPendingOrQueued = `-- name: CancelPendingOrQueued :one
 UPDATE notifications
 SET status = 'cancelled', updated_at = now()
 WHERE id = $1 AND status IN ('pending', 'queued', 'scheduled')
-RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version
+RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by
 `
 
 // CAS-style: only transitions pending or queued → cancelled.
-// Returns the updated row; 0 rows means someone else already moved it.
+// Returns the updated row; 0 rows means someone else already moved it OR the
+// caller doesn't own it. Owner check is on (id, created_by) so a non-admin
+// can only cancel their own rows.
 func (q *Queries) CancelPendingOrQueued(ctx context.Context, id uuid.UUID) (Notification, error) {
 	row := q.db.QueryRow(ctx, cancelPendingOrQueued, id)
 	var i Notification
@@ -42,12 +44,53 @@ func (q *Queries) CancelPendingOrQueued(ctx context.Context, id uuid.UUID) (Noti
 		&i.CorrelationID,
 		&i.TemplateID,
 		&i.TemplateVersion,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
+const cancelPendingOrQueuedScoped = `-- name: CancelPendingOrQueuedScoped :one
+UPDATE notifications
+SET status = 'cancelled', updated_at = now()
+WHERE id = $1
+  AND created_by = $2
+  AND status IN ('pending', 'queued', 'scheduled')
+RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by
+`
+
+type CancelPendingOrQueuedScopedParams struct {
+	ID        uuid.UUID     `json:"id"`
+	CreatedBy uuid.NullUUID `json:"created_by"`
+}
+
+func (q *Queries) CancelPendingOrQueuedScoped(ctx context.Context, arg CancelPendingOrQueuedScopedParams) (Notification, error) {
+	row := q.db.QueryRow(ctx, cancelPendingOrQueuedScoped, arg.ID, arg.CreatedBy)
+	var i Notification
+	err := row.Scan(
+		&i.ID,
+		&i.BatchID,
+		&i.Channel,
+		&i.Recipient,
+		&i.Content,
+		&i.Priority,
+		&i.Status,
+		&i.IdempotencyKey,
+		&i.AttemptCount,
+		&i.LastError,
+		&i.ScheduledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SentAt,
+		&i.CorrelationID,
+		&i.TemplateID,
+		&i.TemplateVersion,
+		&i.CreatedBy,
 	)
 	return i, err
 }
 
 const getNotificationByID = `-- name: GetNotificationByID :one
-SELECT id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version FROM notifications WHERE id = $1
+SELECT id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by FROM notifications WHERE id = $1
 `
 
 func (q *Queries) GetNotificationByID(ctx context.Context, id uuid.UUID) (Notification, error) {
@@ -71,12 +114,53 @@ func (q *Queries) GetNotificationByID(ctx context.Context, id uuid.UUID) (Notifi
 		&i.CorrelationID,
 		&i.TemplateID,
 		&i.TemplateVersion,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
+const getNotificationByIDScoped = `-- name: GetNotificationByIDScoped :one
+SELECT id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by FROM notifications
+WHERE id = $1 AND created_by = $2
+`
+
+type GetNotificationByIDScopedParams struct {
+	ID        uuid.UUID     `json:"id"`
+	CreatedBy uuid.NullUUID `json:"created_by"`
+}
+
+// Owner-scoped fetch — caller (handler) supplies the api_key id from auth context.
+// A NULL created_by row (pre-migration) is hidden from non-admin callers; the
+// handler short-circuits to admin scope when AuthedKey has admin scope, and
+// bypasses this query entirely.
+func (q *Queries) GetNotificationByIDScoped(ctx context.Context, arg GetNotificationByIDScopedParams) (Notification, error) {
+	row := q.db.QueryRow(ctx, getNotificationByIDScoped, arg.ID, arg.CreatedBy)
+	var i Notification
+	err := row.Scan(
+		&i.ID,
+		&i.BatchID,
+		&i.Channel,
+		&i.Recipient,
+		&i.Content,
+		&i.Priority,
+		&i.Status,
+		&i.IdempotencyKey,
+		&i.AttemptCount,
+		&i.LastError,
+		&i.ScheduledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SentAt,
+		&i.CorrelationID,
+		&i.TemplateID,
+		&i.TemplateVersion,
+		&i.CreatedBy,
 	)
 	return i, err
 }
 
 const getNotificationsByBatchID = `-- name: GetNotificationsByBatchID :many
-SELECT id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version FROM notifications
+SELECT id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by FROM notifications
 WHERE batch_id = $1
 ORDER BY created_at DESC, id DESC
 `
@@ -108,6 +192,57 @@ func (q *Queries) GetNotificationsByBatchID(ctx context.Context, batchID uuid.Nu
 			&i.CorrelationID,
 			&i.TemplateID,
 			&i.TemplateVersion,
+			&i.CreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getNotificationsByBatchIDScoped = `-- name: GetNotificationsByBatchIDScoped :many
+SELECT id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by FROM notifications
+WHERE batch_id = $1 AND created_by = $2
+ORDER BY created_at DESC, id DESC
+`
+
+type GetNotificationsByBatchIDScopedParams struct {
+	BatchID   uuid.NullUUID `json:"batch_id"`
+	CreatedBy uuid.NullUUID `json:"created_by"`
+}
+
+func (q *Queries) GetNotificationsByBatchIDScoped(ctx context.Context, arg GetNotificationsByBatchIDScopedParams) ([]Notification, error) {
+	rows, err := q.db.Query(ctx, getNotificationsByBatchIDScoped, arg.BatchID, arg.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Notification{}
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.BatchID,
+			&i.Channel,
+			&i.Recipient,
+			&i.Content,
+			&i.Priority,
+			&i.Status,
+			&i.IdempotencyKey,
+			&i.AttemptCount,
+			&i.LastError,
+			&i.ScheduledAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SentAt,
+			&i.CorrelationID,
+			&i.TemplateID,
+			&i.TemplateVersion,
+			&i.CreatedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -134,13 +269,13 @@ const insertNotification = `-- name: InsertNotification :one
 INSERT INTO notifications (
     id, batch_id, channel, recipient, content, priority, status,
     idempotency_key, scheduled_at, correlation_id,
-    template_id, template_version
+    template_id, template_version, created_by
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7,
     $8, $9, $10,
-    $11, $12
+    $11, $12, $13
 )
-RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version
+RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by
 `
 
 type InsertNotificationParams struct {
@@ -156,6 +291,7 @@ type InsertNotificationParams struct {
 	CorrelationID   string             `json:"correlation_id"`
 	TemplateID      uuid.NullUUID      `json:"template_id"`
 	TemplateVersion *int32             `json:"template_version"`
+	CreatedBy       uuid.NullUUID      `json:"created_by"`
 }
 
 func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotificationParams) (Notification, error) {
@@ -172,6 +308,7 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 		arg.CorrelationID,
 		arg.TemplateID,
 		arg.TemplateVersion,
+		arg.CreatedBy,
 	)
 	var i Notification
 	err := row.Scan(
@@ -192,6 +329,7 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 		&i.CorrelationID,
 		&i.TemplateID,
 		&i.TemplateVersion,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -200,7 +338,7 @@ const markDeadLetter = `-- name: MarkDeadLetter :one
 UPDATE notifications
 SET status = 'dead_letter', last_error = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version
+RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by
 `
 
 type MarkDeadLetterParams struct {
@@ -229,6 +367,7 @@ func (q *Queries) MarkDeadLetter(ctx context.Context, arg MarkDeadLetterParams) 
 		&i.CorrelationID,
 		&i.TemplateID,
 		&i.TemplateVersion,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -237,7 +376,7 @@ const markFailed = `-- name: MarkFailed :one
 UPDATE notifications
 SET status = 'failed', last_error = $2, updated_at = now()
 WHERE id = $1 AND status = 'sending'
-RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version
+RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by
 `
 
 type MarkFailedParams struct {
@@ -266,6 +405,7 @@ func (q *Queries) MarkFailed(ctx context.Context, arg MarkFailedParams) (Notific
 		&i.CorrelationID,
 		&i.TemplateID,
 		&i.TemplateVersion,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -274,7 +414,7 @@ const markQueued = `-- name: MarkQueued :one
 UPDATE notifications
 SET status = 'queued', updated_at = now()
 WHERE id = $1 AND status = 'pending'
-RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version
+RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by
 `
 
 // Outbox dispatcher transition: pending → queued after publish confirm.
@@ -299,6 +439,7 @@ func (q *Queries) MarkQueued(ctx context.Context, id uuid.UUID) (Notification, e
 		&i.CorrelationID,
 		&i.TemplateID,
 		&i.TemplateVersion,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -307,7 +448,7 @@ const markSendingCAS = `-- name: MarkSendingCAS :one
 UPDATE notifications
 SET status = 'sending', updated_at = now()
 WHERE id = $1 AND status IN ('pending', 'queued')
-RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version
+RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by
 `
 
 // Worker pickup: pending OR queued → sending.
@@ -335,6 +476,7 @@ func (q *Queries) MarkSendingCAS(ctx context.Context, id uuid.UUID) (Notificatio
 		&i.CorrelationID,
 		&i.TemplateID,
 		&i.TemplateVersion,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -343,7 +485,7 @@ const markSent = `-- name: MarkSent :one
 UPDATE notifications
 SET status = 'sent', sent_at = now(), updated_at = now()
 WHERE id = $1 AND status = 'sending'
-RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version
+RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by
 `
 
 func (q *Queries) MarkSent(ctx context.Context, id uuid.UUID) (Notification, error) {
@@ -367,6 +509,7 @@ func (q *Queries) MarkSent(ctx context.Context, id uuid.UUID) (Notification, err
 		&i.CorrelationID,
 		&i.TemplateID,
 		&i.TemplateVersion,
+		&i.CreatedBy,
 	)
 	return i, err
 }

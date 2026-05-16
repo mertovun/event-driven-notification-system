@@ -253,6 +253,7 @@ func (h *notificationsHandler) persist(
 		CorrelationID:   corrID,
 		TemplateID:      tplID,
 		TemplateVersion: templateVersion,
+		CreatedBy:       ownerFromCtx(ctx),
 	})
 	if err != nil {
 		return notificationResponse{}, 0, fmt.Errorf("insert notification: %w", err)
@@ -386,6 +387,22 @@ func nullableString(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// ownerFromCtx pulls the authenticated API key's UUID off the request context
+// for ownership stamping on writes. Returns invalid NullUUID when no key is
+// present — happens only in tests; live requests always have an authedKey
+// because AuthMiddleware runs first.
+func ownerFromCtx(ctx context.Context) uuid.NullUUID {
+	k, ok := AuthedKeyFrom(ctx)
+	if !ok {
+		return uuid.NullUUID{}
+	}
+	id, err := uuid.Parse(k.ID)
+	if err != nil {
+		return uuid.NullUUID{}
+	}
+	return uuid.NullUUID{UUID: id, Valid: true}
 }
 
 // mapHeadersCarrier adapts a map[string]any to the OTel TextMapCarrier interface

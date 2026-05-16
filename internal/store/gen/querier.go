@@ -14,8 +14,11 @@ import (
 type Querier interface {
 	BumpTemplateVersion(ctx context.Context, arg BumpTemplateVersionParams) (Template, error)
 	// CAS-style: only transitions pending or queued → cancelled.
-	// Returns the updated row; 0 rows means someone else already moved it.
+	// Returns the updated row; 0 rows means someone else already moved it OR the
+	// caller doesn't own it. Owner check is on (id, created_by) so a non-admin
+	// can only cancel their own rows.
 	CancelPendingOrQueued(ctx context.Context, id uuid.UUID) (Notification, error)
+	CancelPendingOrQueuedScoped(ctx context.Context, arg CancelPendingOrQueuedScopedParams) (Notification, error)
 	// Scheduler poller: claim due, unclaimed rows.
 	ClaimDueScheduled(ctx context.Context, arg ClaimDueScheduledParams) ([]ScheduledNotification, error)
 	// Atomic claim with FOR UPDATE SKIP LOCKED. Reclaims rows whose previous
@@ -31,7 +34,13 @@ type Querier interface {
 	GetDeadLetterByNotification(ctx context.Context, notificationID uuid.UUID) (DeadLetter, error)
 	GetDeliveryAttemptsByNotification(ctx context.Context, notificationID uuid.UUID) ([]DeliveryAttempt, error)
 	GetNotificationByID(ctx context.Context, id uuid.UUID) (Notification, error)
+	// Owner-scoped fetch — caller (handler) supplies the api_key id from auth context.
+	// A NULL created_by row (pre-migration) is hidden from non-admin callers; the
+	// handler short-circuits to admin scope when AuthedKey has admin scope, and
+	// bypasses this query entirely.
+	GetNotificationByIDScoped(ctx context.Context, arg GetNotificationByIDScopedParams) (Notification, error)
 	GetNotificationsByBatchID(ctx context.Context, batchID uuid.NullUUID) ([]Notification, error)
+	GetNotificationsByBatchIDScoped(ctx context.Context, arg GetNotificationsByBatchIDScopedParams) ([]Notification, error)
 	GetTemplateByID(ctx context.Context, id uuid.UUID) (Template, error)
 	IncrementAttempt(ctx context.Context, id uuid.UUID) error
 	InsertAPIKey(ctx context.Context, arg InsertAPIKeyParams) (ApiKey, error)

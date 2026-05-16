@@ -195,6 +195,7 @@ func (h *notificationsHandler) insertBatchItem(
 		CorrelationID:   corrID,
 		TemplateID:      uuid.NullUUID{},
 		TemplateVersion: nil,
+		CreatedBy:       ownerFromCtx(ctx),
 	})
 	if err != nil {
 		return gen.Notification{}, err
@@ -226,19 +227,41 @@ func (h *notificationsHandler) insertBatchItem(
 }
 
 // get handles GET /v1/notifications/{id}.
+//
+// AuthZ: a non-admin key only sees its own notifications. Admin scope
+// bypasses ownership and sees every row — useful for support / incident
+// triage. Owner-mismatch returns 404 (not 403) so it can't be probed as
+// an existence oracle.
 func (h *notificationsHandler) get(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		WriteValidationProblem(w, r, []FieldError{{Field: "id", Message: "must be a UUID"}})
 		return
 	}
-	row, err := h.q.GetNotificationByID(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+
+	var (
+		row      gen.Notification
+		fetchErr error
+	)
+	if k, ok := AuthedKeyFrom(r.Context()); ok && k.HasScope(ScopeAdmin) {
+		row, fetchErr = h.q.GetNotificationByID(r.Context(), id)
+	} else {
+		owner := ownerFromCtx(r.Context())
+		if !owner.Valid {
 			WriteErrorAsProblem(w, r, notification.ErrNotFound)
 			return
 		}
-		WriteErrorAsProblem(w, r, fmt.Errorf("get notification: %w", err))
+		row, fetchErr = h.q.GetNotificationByIDScoped(r.Context(), gen.GetNotificationByIDScopedParams{
+			ID:        id,
+			CreatedBy: owner,
+		})
+	}
+	if fetchErr != nil {
+		if errors.Is(fetchErr, pgx.ErrNoRows) {
+			WriteErrorAsProblem(w, r, notification.ErrNotFound)
+			return
+		}
+		WriteErrorAsProblem(w, r, fmt.Errorf("get notification: %w", fetchErr))
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -273,7 +296,22 @@ func (h *notificationsHandler) getByBatch(w http.ResponseWriter, r *http.Request
 		WriteErrorAsProblem(w, r, fmt.Errorf("get batch: %w", err))
 		return
 	}
-	items, err := h.q.GetNotificationsByBatchID(r.Context(), uuid.NullUUID{UUID: id, Valid: true})
+	// AuthZ — non-admin only sees its own items in the batch (and gets an empty
+	// list if the batch has no rows owned by them).
+	var items []gen.Notification
+	if k, ok := AuthedKeyFrom(r.Context()); ok && k.HasScope(ScopeAdmin) {
+		items, err = h.q.GetNotificationsByBatchID(r.Context(), uuid.NullUUID{UUID: id, Valid: true})
+	} else {
+		owner := ownerFromCtx(r.Context())
+		if !owner.Valid {
+			WriteErrorAsProblem(w, r, notification.ErrNotFound)
+			return
+		}
+		items, err = h.q.GetNotificationsByBatchIDScoped(r.Context(), gen.GetNotificationsByBatchIDScopedParams{
+			BatchID:   uuid.NullUUID{UUID: id, Valid: true},
+			CreatedBy: owner,
+		})
+	}
 	if err != nil {
 		WriteErrorAsProblem(w, r, fmt.Errorf("list batch items: %w", err))
 		return
@@ -302,20 +340,43 @@ func (h *notificationsHandler) cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row, err := h.q.CancelPendingOrQueued(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			// Either not found OR already past cancellable states.
-			// Disambiguate so the client gets a meaningful 404 vs 409.
+	var (
+		row    gen.Notification
+		canErr error
+	)
+	if k, ok := AuthedKeyFrom(r.Context()); ok && k.HasScope(ScopeAdmin) {
+		row, canErr = h.q.CancelPendingOrQueued(r.Context(), id)
+	} else {
+		owner := ownerFromCtx(r.Context())
+		if !owner.Valid {
+			WriteErrorAsProblem(w, r, notification.ErrNotFound)
+			return
+		}
+		row, canErr = h.q.CancelPendingOrQueuedScoped(r.Context(), gen.CancelPendingOrQueuedScopedParams{
+			ID:        id,
+			CreatedBy: owner,
+		})
+	}
+	if canErr != nil {
+		if errors.Is(canErr, pgx.ErrNoRows) {
+			// Either: not found, not owned by caller, OR past cancellable states.
+			// Disambiguate non-admin "not owned" vs "wrong state" by re-checking
+			// existence; non-admin still gets 404 for unowned rows (no existence
+			// oracle), admin gets 409 if past cancellable states.
 			_, gerr := h.q.GetNotificationByID(r.Context(), id)
 			if errors.Is(gerr, pgx.ErrNoRows) {
+				WriteErrorAsProblem(w, r, notification.ErrNotFound)
+				return
+			}
+			// For non-admins, hide the existence (404 not 409) so they can't probe.
+			if k, ok := AuthedKeyFrom(r.Context()); !ok || !k.HasScope(ScopeAdmin) {
 				WriteErrorAsProblem(w, r, notification.ErrNotFound)
 				return
 			}
 			WriteErrorAsProblem(w, r, fmt.Errorf("%w: cannot cancel from current state", notification.ErrInvalidState))
 			return
 		}
-		WriteErrorAsProblem(w, r, fmt.Errorf("cancel: %w", err))
+		WriteErrorAsProblem(w, r, fmt.Errorf("cancel: %w", canErr))
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

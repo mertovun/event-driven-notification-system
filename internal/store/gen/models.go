@@ -36,6 +36,7 @@ type Batch struct {
 	IdempotencyKey *string            `json:"idempotency_key"`
 	Status         string             `json:"status"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	CreatedBy      uuid.NullUUID      `json:"created_by"`
 }
 
 type DeadLetter struct {
@@ -77,6 +78,7 @@ type Notification struct {
 	CorrelationID   string             `json:"correlation_id"`
 	TemplateID      uuid.NullUUID      `json:"template_id"`
 	TemplateVersion *int32             `json:"template_version"`
+	CreatedBy       uuid.NullUUID      `json:"created_by"`
 }
 
 type Outbox struct {

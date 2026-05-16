@@ -12,7 +12,7 @@ import (
 )
 
 const getBatchByID = `-- name: GetBatchByID :one
-SELECT id, total_count, accepted_count, rejected_count, idempotency_key, status, created_at FROM batches WHERE id = $1
+SELECT id, total_count, accepted_count, rejected_count, idempotency_key, status, created_at, created_by FROM batches WHERE id = $1
 `
 
 func (q *Queries) GetBatchByID(ctx context.Context, id uuid.UUID) (Batch, error) {
@@ -26,6 +26,7 @@ func (q *Queries) GetBatchByID(ctx context.Context, id uuid.UUID) (Batch, error)
 		&i.IdempotencyKey,
 		&i.Status,
 		&i.CreatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -36,7 +37,7 @@ INSERT INTO batches (
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
-RETURNING id, total_count, accepted_count, rejected_count, idempotency_key, status, created_at
+RETURNING id, total_count, accepted_count, rejected_count, idempotency_key, status, created_at, created_by
 `
 
 type InsertBatchParams struct {
@@ -66,6 +67,7 @@ func (q *Queries) InsertBatch(ctx context.Context, arg InsertBatchParams) (Batch
 		&i.IdempotencyKey,
 		&i.Status,
 		&i.CreatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }

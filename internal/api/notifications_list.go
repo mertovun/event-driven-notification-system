@@ -96,6 +96,19 @@ func (h *notificationsHandler) list(w http.ResponseWriter, r *http.Request) {
 		Limit(uint64(limit + 1)). // +1 to detect has_more
 		PlaceholderFormat(sq.Dollar)
 
+	// AuthZ — non-admin keys see only their own rows. Admin scope bypasses.
+	if k, ok := AuthedKeyFrom(r.Context()); !ok || !k.HasScope(ScopeAdmin) {
+		owner := ownerFromCtx(r.Context())
+		if !owner.Valid {
+			// No identity — return empty list rather than 401 (middleware
+			// already authenticated; this only catches missing-context bugs).
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(listResponse{Items: []notificationResponse{}})
+			return
+		}
+		builder = builder.Where(sq.Eq{"created_by": owner.UUID})
+	}
+
 	if s := q.Get("status"); s != "" {
 		if !notification.Status(s).Valid() {
 			WriteValidationProblem(w, r, []FieldError{{Field: "status", Message: "invalid"}})
