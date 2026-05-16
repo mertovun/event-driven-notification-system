@@ -70,6 +70,7 @@ func NewRouter(d Deps) http.Handler {
 
 	notifH := newNotificationsHandler(d, d.Idempotency)
 	tmplH := newTemplatesHandler(d)
+	adminH := newAdminHandler(d, notifH)
 
 	// V1 resource routes — auth, body-size limit, then resource handlers.
 	r.Route("/v1", func(api chi.Router) {
@@ -92,6 +93,15 @@ func NewRouter(d Deps) http.Handler {
 			api.With(RequireScope(ScopeRead)).
 				Get("/ws/notifications", ws.Handler(d.WSHub, ws.DefaultConfig(), d.Logger))
 		}
+
+		// admin — all routes require the admin scope.
+		api.Route("/admin", func(a chi.Router) {
+			a.Use(RequireScope(ScopeAdmin))
+			a.Get("/dead-letters", adminH.list)
+			a.Get("/dead-letters/{id}", adminH.get)
+			a.Post("/dead-letters/{id}/replay", adminH.replay)
+			a.Delete("/dead-letters/{id}", adminH.purge)
+		})
 
 		// templates
 		api.Route("/templates", func(t chi.Router) {
