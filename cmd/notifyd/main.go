@@ -104,7 +104,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		return fmt.Errorf("pg pool: %w", err)
 	}
 	defer pool.Close()
-	logger.Info("postgres connected", "max_conns", 20)
+	logger.Info("postgres connected", "max_conns", pool.Config().MaxConns)
 
 	q := gen.New(pool)
 

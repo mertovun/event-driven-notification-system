@@ -190,9 +190,6 @@ func readyzHandler(d Deps) http.HandlerFunc {
 	}
 }
 
-// Avoid an unused-import warning on `context` if the handler isn't using it directly.
-var _ = context.TODO
-
 func versionHandler(bi BuildInfo) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		body := struct {

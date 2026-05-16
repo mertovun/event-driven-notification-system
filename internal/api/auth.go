@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -251,8 +250,3 @@ func SeedDevKey(ctx context.Context, q *gen.Queries, raw string) error {
 	})
 	return err
 }
-
-// (Unused but kept here to document the contract: a hex digest of the raw key
-// would be wrong because it's a deterministic fingerprint — argon2id with a
-// random salt is what we use.)
-var _ = hex.EncodeToString
