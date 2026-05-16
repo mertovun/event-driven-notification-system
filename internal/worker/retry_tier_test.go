@@ -174,7 +174,10 @@ func TestRetryTierFailureInjection(t *testing.T) {
 	require.True(t, sawFirstFailure, "expected to observe status=queued + attempt_count++ after first 503")
 
 	// Now wait for the wait.5s TTL bounce + second attempt succeeds.
-	deadline := time.Now().Add(20 * time.Second)
+	// 45s budget: wait.5s TTL (5s) + DLX hop (~1s on CI) + worker pickup
+	// + provider call + DB commit. Local Docker is ~6s; CI's shared runner
+	// adds slack. The assertion is "the bounce happens at all," not "fast."
+	deadline := time.Now().Add(45 * time.Second)
 	for {
 		if time.Now().After(deadline) {
 			t.Fatalf("timeout waiting for retry-tier bounce; calls=%d", calls.Load())
