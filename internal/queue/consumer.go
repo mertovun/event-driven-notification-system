@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -31,43 +32,119 @@ func (d Delivery) NackDLQ() error       { return d.d.Nack(false, false) }
 // the consumer decide ack/nack/republish based on policy.
 type Handler func(ctx context.Context, d Delivery) error
 
-// Consumer wraps one AMQP channel + one queue and pumps deliveries to a Handler.
-// One Consumer per (channel, replica). Prefetch=1 to make priority queues honour priority.
-type Consumer struct {
-	url       string
-	queueName string
-	prefetch  int
-	logger    *slog.Logger
+// ErrTerminal — handler signal that the message should go to the DLQ, not retried.
+var ErrTerminal = errors.New("terminal: route to DLQ")
 
-	conn    *amqp.Connection
-	channel *amqp.Channel
+// ConsumerConnection wraps one shared amqp.Connection that multiple Consumers
+// share channels off. AMQP best practice is one TCP connection per process
+// (or per role) and N lightweight channels off it. The previous design dialed
+// a fresh connection per worker — 24 TCP connections per replica at the
+// default 8/channel/3-channels pool spec, three reviewers flagged it.
+type ConsumerConnection struct {
+	url    string
+	logger *slog.Logger
+
+	mu   sync.Mutex
+	conn *amqp.Connection
+
+	closeOnce sync.Once
+	stopped   chan struct{}
 }
 
-// NewConsumer dials AMQP, declares topology, and applies prefetch=N.
-func NewConsumer(_ context.Context, url, queueName string, prefetch int, logger *slog.Logger) (*Consumer, error) {
-	conn, err := amqp.DialConfig(url, amqp.Config{Heartbeat: 30 * time.Second})
-	if err != nil {
-		return nil, fmt.Errorf("amqp dial: %w", err)
+// NewConsumerConnection dials AMQP and declares topology on a throwaway
+// channel. The shared connection is then handed out to NewConsumer via
+// (*ConsumerConnection).NewConsumer.
+func NewConsumerConnection(_ context.Context, url string, logger *slog.Logger) (*ConsumerConnection, error) {
+	cc := &ConsumerConnection{
+		url:     url,
+		logger:  logger,
+		stopped: make(chan struct{}),
 	}
+	if err := cc.dial(); err != nil {
+		return nil, err
+	}
+	return cc, nil
+}
+
+func (cc *ConsumerConnection) dial() error {
+	conn, err := amqp.DialConfig(cc.url, amqp.Config{Heartbeat: 30 * time.Second})
+	if err != nil {
+		return fmt.Errorf("amqp dial: %w", err)
+	}
+
+	// One-shot topology declaration on a throwaway channel — broker stores
+	// topology globally so consumer channels just bind/consume.
 	ch, err := conn.Channel()
 	if err != nil {
 		_ = conn.Close()
-		return nil, fmt.Errorf("amqp channel: %w", err)
+		return fmt.Errorf("amqp channel for topology: %w", err)
 	}
 	if err := DeclareTopology(ch); err != nil {
 		_ = ch.Close()
 		_ = conn.Close()
-		return nil, fmt.Errorf("declare topology: %w", err)
+		return fmt.Errorf("declare topology: %w", err)
+	}
+	_ = ch.Close()
+
+	cc.mu.Lock()
+	cc.conn = conn
+	cc.mu.Unlock()
+
+	cc.logger.Info("amqp consumer connection established", "url-redacted", redactURL(cc.url))
+	return nil
+}
+
+// channel returns a fresh AMQP channel on the shared connection. Callers
+// own the lifecycle (Close on shutdown).
+func (cc *ConsumerConnection) channel() (*amqp.Channel, error) {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	if cc.conn == nil || cc.conn.IsClosed() {
+		return nil, errors.New("consumer connection: closed (reconnecting?)")
+	}
+	return cc.conn.Channel()
+}
+
+// Close shuts down the shared connection. Idempotent.
+func (cc *ConsumerConnection) Close() error {
+	var err error
+	cc.closeOnce.Do(func() {
+		close(cc.stopped)
+		cc.mu.Lock()
+		defer cc.mu.Unlock()
+		if cc.conn != nil && !cc.conn.IsClosed() {
+			err = cc.conn.Close()
+		}
+	})
+	return err
+}
+
+// Consumer wraps one AMQP channel + one queue and pumps deliveries to a Handler.
+// One Consumer per (channel, replica). Prefetch=1 to make priority queues honour priority.
+// Holds a channel on a shared ConsumerConnection — no per-Consumer TCP connection.
+type Consumer struct {
+	queueName string
+	prefetch  int
+	logger    *slog.Logger
+	channel   *amqp.Channel
+}
+
+// NewConsumer opens a channel on the shared connection, applies prefetch,
+// and returns a ready Consumer. The shared connection MUST outlive the
+// Consumer.
+func NewConsumer(_ context.Context, cc *ConsumerConnection, queueName string, prefetch int, logger *slog.Logger) (*Consumer, error) {
+	ch, err := cc.channel()
+	if err != nil {
+		return nil, fmt.Errorf("acquire channel: %w", err)
 	}
 	if err := ch.Qos(prefetch, 0, false); err != nil {
 		_ = ch.Close()
-		_ = conn.Close()
 		return nil, fmt.Errorf("basic.qos: %w", err)
 	}
-	logger.Info("amqp consumer connected", "queue", queueName, "prefetch", prefetch)
+	logger.Info("amqp consumer ready", "queue", queueName, "prefetch", prefetch)
 	return &Consumer{
-		url: url, queueName: queueName, prefetch: prefetch, logger: logger,
-		conn: conn, channel: ch,
+		queueName: queueName, prefetch: prefetch, logger: logger,
+		channel: ch,
 	}, nil
 }
 
@@ -114,16 +191,11 @@ func (c *Consumer) Run(ctx context.Context, h Handler) error {
 	}
 }
 
-// ErrTerminal — handler signal that the message should go to the DLQ, not retried.
-var ErrTerminal = errors.New("terminal: route to DLQ")
-
-// Close shuts down the channel and connection.
+// Close shuts down only this consumer's channel. The shared connection
+// belongs to the ConsumerConnection that constructed us.
 func (c *Consumer) Close() error {
 	if c.channel != nil {
-		_ = c.channel.Close()
-	}
-	if c.conn != nil && !c.conn.IsClosed() {
-		return c.conn.Close()
+		return c.channel.Close()
 	}
 	return nil
 }

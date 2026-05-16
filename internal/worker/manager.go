@@ -84,8 +84,20 @@ func NewManager(
 
 // Run starts all worker goroutines. Blocks until ctx is cancelled or any consumer fails.
 // Graceful shutdown: cancelling ctx stops consumers; in-flight handlers run to completion.
+//
+// Dials ONE shared amqp.Connection for the whole manager and opens a channel
+// per consumer off it. Previously each consumer dialed its own TCP connection
+// — 24 connections per replica at the default pool spec — which the Architecture
+// and Go reviewers flagged. RabbitMQ's published guidance is one connection
+// per process (or per role) with N channels.
 func (m *Manager) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
+
+	cc, err := queue.NewConsumerConnection(gctx, m.amqpURL, m.logger)
+	if err != nil {
+		return fmt.Errorf("amqp consumer connection: %w", err)
+	}
+	defer func() { _ = cc.Close() }()
 
 	channelQueues := map[string]string{
 		"sms":   queue.QueueSMS,
@@ -105,7 +117,7 @@ func (m *Manager) Run(ctx context.Context) error {
 			workerName := fmt.Sprintf("%s-%d", chName, i)
 			qn := qName
 			g.Go(func() error {
-				cons, err := queue.NewConsumer(gctx, m.amqpURL, qn, 1, m.logger.With("worker", workerName))
+				cons, err := queue.NewConsumer(gctx, cc, qn, 1, m.logger.With("worker", workerName))
 				if err != nil {
 					return fmt.Errorf("worker %s consumer: %w", workerName, err)
 				}
