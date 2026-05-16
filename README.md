@@ -96,6 +96,7 @@ curl http://localhost:8090/metrics | grep notifications_
 
 **Security & realtime**
 - **argon2id** API key hashing with prefix-narrowed lookup. → [ADR-0011](docs/adr/0011-argon2id-over-bcrypt.md)
+- **Verified-key cache** in Redis short-circuits argon2id on the hot path (60s TTL). → [ADR-0021](docs/adr/0021-verified-key-auth-cache.md)
 - **WebSocket** over Server-Sent Events for status push. → [ADR-0014](docs/adr/0014-websocket-over-sse.md)
 - **`coder/websocket`** library over `gorilla/websocket`. → [ADR-0018](docs/adr/0018-coder-websocket-library.md)
 
@@ -257,19 +258,20 @@ make load-test       # run all 3 k6 scenarios
 | **Unit** | Pure logic — error mapping, idempotency canonicalization, cursor codec, filter parser, validators, SSRF deny-zone, breaker thresholds | `make test` (race detector ON) |
 | **Integration** | Real DB / AMQP / Redis via testcontainers — migrations, CAS races, Lua script, outbox dispatch end-to-end, worker pipeline against mock provider | `make test-integration` |
 | **E2E** | Full docker-compose stack — API contract, WS push, admin DLQ replay | curl + python WS client. See `make up` quickstart curl examples. |
-| **Load** | k6 scenarios — baseline 50 RPS, priority burst 150 RPS, idempotency replay | `make load-test` |
+| **Load** | k6 scenarios — baseline 50 RPS, priority burst 150 RPS, idempotency replay, saturation ramp 500→4000 RPS | `make load-test` |
 
 Latest measured numbers on a clean stack (single replica, macOS arm64, Docker Desktop):
 
 | Scenario | Total reqs | Failed | Throughput | p95 | p99 | Notes |
 |---|---|---|---|---|---|---|
-| Baseline 50 RPS × 30s | 1,501 | 0 | 49.9 r/s | 99ms | **134ms** | well within 500ms threshold |
+| Baseline 50 RPS × 30s | 1,501 | 0 | 49.9 r/s | 4.7ms | 7.5ms | post-cache; pre-cache p99 was 116ms |
 | Priority burst 150 RPS × 20s | 2,174 | 0 | 106.5 r/s | 1.21s | — | API back-pressures gracefully under burst; zero errors |
 | Idempotency 20 RPS × 15s | 301 | 0 | 19.9 r/s | 95ms | 101ms | replay path under load |
+| Saturation ramp 500→4000 RPS × 55s | 97,439 | 0 | **1,771 r/s** | **2.44ms** | — | post-pool-tuning; ~35× ceiling vs baseline |
 
-`make load-test` runs all three.
+`make load-test` runs the first three; saturation is `k6 run loadtest/k6_saturation.js`.
 
-**Profiling and bottleneck analysis** are in [`PERFORMANCE.md`](PERFORMANCE.md). Short version: ~96% of CPU is in argon2id key verification (by design — `t=2, m=64MB` per [ADR-0011](docs/adr/0011-argon2id-over-bcrypt.md)). Every other path is sub-1% of CPU. The pprof endpoints are mounted behind `PPROF_ENABLED=true`; `make profile-cpu` captures a 30s profile.
+**Profiling and bottleneck analysis** are in [`PERFORMANCE.md`](PERFORMANCE.md), with the full four-phase story (baseline → Redis verified-key cache → saturation finding the pgxpool ceiling → wider pool + Postgres `max_connections=200`). Headline: ceiling moved from ~50 RPS (CPU-bound on argon2id) to 1,771 RPS (Postgres-I/O-bound, ~20% of one core). The pprof endpoints are mounted behind `PPROF_ENABLED=true`; `make profile-cpu` captures a 30s profile.
 
 ---
 
