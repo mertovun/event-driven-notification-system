@@ -121,6 +121,27 @@ func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 		p.metrics.WorkerActive.WithLabelValues(p.channel).Inc()
 		defer p.metrics.WorkerActive.WithLabelValues(p.channel).Dec()
 	}
+
+	// Poison-message guard: every Nack(requeue=true) increments the broker's
+	// internal redelivery count, but RabbitMQ doesn't surface that count by
+	// default. We carry our own "x-attempts" header so a message that loops
+	// without ever leaving the worker (e.g., persistent CAS or SETNX failure
+	// on a specific row) gets dead-lettered after maxRedeliveries instead of
+	// hot-looping invisibly. QA empirically observed a hot-loop at ~4,200/s
+	// with zero log output before this guard existed.
+	if hdr := d.Headers(); hdr != nil {
+		if v, ok := hdr["x-redeliveries"]; ok {
+			if n, ok := v.(int32); ok && n >= maxRedeliveries {
+				p.logger.Error("redelivery cap exceeded; dead-lettering to break the loop",
+					"channel", p.channel, "redeliveries", n, "max", maxRedeliveries)
+				if p.metrics != nil {
+					p.metrics.NotificationsDeliveredTotal.WithLabelValues(p.channel, "dead_letter").Inc()
+				}
+				return queue.ErrTerminal
+			}
+		}
+	}
+
 	handleCtx, cancel := context.WithTimeout(ctx, handleTimeout)
 	defer cancel()
 	start := time.Now()
@@ -136,8 +157,74 @@ func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 			p.metrics.NotificationsDeliveredTotal.WithLabelValues(p.channel, "failure").Inc()
 		}
 	}
+
+	// Surface the error so no failure path is silent. handle()'s individual
+	// error sites log domain-specific context; this is the safety net for
+	// the "added a new return-err path, forgot to log" mode that QA
+	// reproduced as a 4,200/s silent hot-loop.
+	if err != nil && !errors.Is(err, queue.ErrTerminal) {
+		p.logger.Warn("delivery returned non-nil error",
+			"channel", p.channel, "err", err.Error(), "duration_ms", time.Since(start).Milliseconds())
+
+		// Convert immediate broker redelivery (nack-requeue) into a timed
+		// retry on the wait.5s tier with an incremented x-redeliveries
+		// counter. Without this, an infra-transient failure (CAS error,
+		// SETNX error, ratelimit Redis hiccup) loops at full prefetch
+		// rate against the same dead-set message.
+		if p.queuePub != nil {
+			if rerr := p.requeueViaWaitTier(handleCtx, d, currentRedeliveries(d.Headers())); rerr == nil {
+				return nil // ack original; wait queue will redeliver
+			}
+		}
+	}
 	return err
 }
+
+// currentRedeliveries reads the x-redeliveries header set by previous bounces
+// through the wait tier. Returns 0 if absent. AMQP headers are decoded as int32
+// when integer; coercion happens at write time (see requeueViaWaitTier).
+func currentRedeliveries(hdrs map[string]any) int32 {
+	if hdrs == nil {
+		return 0
+	}
+	v, ok := hdrs["x-redeliveries"]
+	if !ok {
+		return 0
+	}
+	if n, ok := v.(int32); ok {
+		return n
+	}
+	return 0
+}
+
+// requeueViaWaitTier publishes the delivery body to notifications.wait.5s with
+// x-redeliveries=prev+1. RabbitMQ's TTL+DLX bounces it back to the channel
+// queue. The redelivery cap at the top of Handle eventually dead-letters
+// anything that loops past maxRedeliveries (default 20).
+func (p *Pipeline) requeueViaWaitTier(ctx context.Context, d queue.Delivery, prev int32) error {
+	// Try to decode envelope just enough to derive routing key + priority.
+	// If body is unparseable we shouldn't be here — that path is terminal.
+	var env envelope
+	_ = json.Unmarshal(d.Body(), &env)
+
+	headers := map[string]any{
+		"x-redeliveries":  prev + 1,
+		"correlation_id":  env.CorrelationID,
+		"notification_id": env.NotificationID,
+	}
+	return p.queuePub.PublishToWaitQueue(ctx, queue.QueueRetry5s, queue.PublishMessage{
+		RoutingKey: queue.RoutingKey(env.Channel),
+		Payload:    d.Body(),
+		Priority:   priorityToAMQP(env.Priority),
+		Headers:    headers,
+	})
+}
+
+// maxRedeliveries is the broker-side redelivery cap before we force a
+// notification to the DLQ. Set above the per-attempt retry budget
+// (Pipeline.maxAttempts = 10) with headroom so a normal retry path doesn't
+// trip it; only a true hot-loop does.
+const maxRedeliveries = int32(20)
 
 // handle is the inner pipeline; Handle wraps with metrics.
 func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
