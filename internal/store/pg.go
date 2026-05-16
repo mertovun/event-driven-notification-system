@@ -23,6 +23,11 @@ func NewPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	cfg.MaxConnIdleTime = 30 * time.Minute
 	cfg.HealthCheckPeriod = time.Minute
 
+	// Per-connection statement_timeout — bounds worst-case query duration so a
+	// wedged client read fails fast (Postgres aborts after 5s and the wire
+	// surfaces an error). See README "Known issues" for the scheduled-flow hang.
+	cfg.ConnConfig.RuntimeParams["statement_timeout"] = "5000"
+
 	// OpenTelemetry tracer on pg queries. Parameterized statement only (no values).
 	cfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithTrimSQLInSpanName())
 

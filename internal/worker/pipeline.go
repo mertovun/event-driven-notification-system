@@ -125,6 +125,9 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 	ctx = withCorrelationID(ctx, env.CorrelationID)
 
 	// 2) CAS queued → sending. If 0 rows, someone cancelled it; ack and drop.
+	// statement_timeout on the connection (see store/pg.go) bounds the worst
+	// case if the wire read wedges — observed during scheduled-notification
+	// flow stress under concurrent transactions from the scheduler.
 	row, err := p.q.MarkSendingCAS(ctx, notifID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
