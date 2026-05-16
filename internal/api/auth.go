@@ -231,6 +231,13 @@ func extractBearer(r *http.Request) (string, bool) {
 	return raw, true
 }
 
+// HasDevSeedRow reports whether an active 'dev-seed' row exists in api_keys.
+// Used by the startup guard to warn when a non-development deploy is still
+// carrying the dev key. Errors return false (best-effort audit).
+func HasDevSeedRow(ctx context.Context, q *gen.Queries) (bool, error) {
+	return q.HasDevSeedRow(ctx)
+}
+
 // SeedDevKey inserts (or upserts) the dev API key with full scopes.
 // Called at startup when DEV_API_KEY is non-empty. The raw key value comes from env.
 func SeedDevKey(ctx context.Context, q *gen.Queries, raw string) error {

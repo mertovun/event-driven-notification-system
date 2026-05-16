@@ -165,10 +165,30 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	wsHub := ws.NewHub(rdb, logger)
 
 	if cfg.DevAPIKey != "" {
+		// Hard-fail in non-development environments. ADR-0013 promised this
+		// guard; without it a committed .env containing the literal dev key
+		// would silently issue a fully-scoped credential in production.
+		// Operators who genuinely need the dev key in another environment
+		// must set APP_ENV=development explicitly.
+		if cfg.Env != "development" {
+			return fmt.Errorf("DEV_API_KEY is set but APP_ENV=%q (must be 'development' to seed the dev key)", cfg.Env)
+		}
 		if err := api.SeedDevKey(ctx, q, cfg.DevAPIKey); err != nil {
 			return fmt.Errorf("seed dev api key: %w", err)
 		}
 		logger.Info("dev api key seeded", "prefix", cfg.DevAPIKey[:8])
+	} else {
+		// No DEV_API_KEY set: do an audit pass to make sure no stale dev
+		// seed lingers in the api_keys table from a previous boot. ADR-0013
+		// names this as the second half of the guard. We log a WARN rather
+		// than fail because the row may have been intentionally promoted
+		// (e.g., re-purposed by the operator) — but on-call should know.
+		if cfg.Env != "development" {
+			if found, err := api.HasDevSeedRow(ctx, q); err == nil && found {
+				logger.Warn("dev seed row present in api_keys despite DEV_API_KEY unset; consider revoking",
+					"env", cfg.Env)
+			}
+		}
 	}
 
 	// Queue publisher + outbox dispatcher + worker pools run in worker / all mode.

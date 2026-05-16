@@ -14,6 +14,10 @@ type Config struct {
 	Mode     string `envconfig:"MODE" default:"all"`
 	HTTPAddr string `envconfig:"HTTP_ADDR" default:":8080"`
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
+	// Env gates production-unsafe behaviour: when != "development", the
+	// startup refuses to seed the dev API key and fails loudly. ADR-0013
+	// promised this check; the panel review noted it was missing.
+	Env string `envconfig:"APP_ENV" default:"development"`
 
 	// Postgres
 	DatabaseURL string `envconfig:"DATABASE_URL" required:"true"`
