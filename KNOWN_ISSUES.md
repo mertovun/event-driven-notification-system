@@ -1,101 +1,145 @@
 # Known Issues
 
-## Scheduled-notification worker hang
+## Scheduled-notification "wedge" — **diagnosed and fixed (2026-05-16)**
 
-**Symptom.** When a notification scheduled via `scheduled_at` becomes due, the
-scheduler transitions it correctly (`scheduled → pending → queued`) and writes
-a fresh `outbox` row. The outbox dispatcher publishes the AMQP message
-successfully. The worker consumes the message but then hangs indefinitely
-inside `MarkSendingCAS` — the very first DB query of the delivery pipeline.
+**TL;DR.** The wedge was never a pgx bug. It was a Postgres CHECK
+constraint mis-firing on the worker's `MarkSendingCAS` query.
+[Migration 0010](internal/store/migrations/0010_scheduled_constraint_relax.up.sql)
+drops the over-strict constraint; the scheduler path now delivers
+end-to-end. The earlier diagnosis pointing at `pgx/v5/pgconn/internal/bgreader`
+was wrong.
 
-**Reproduction.**
-1. `make up` on a clean stack.
-2. `POST /v1/notifications` with `scheduled_at` ~3s in the future.
-3. After ~3s the notification reaches `queued`, then never advances.
-4. `rabbitmqctl list_queues` shows `1 messages_unacknowledged`.
-5. SIGQUIT goroutine dump shows worker stuck at:
-   `worker/pipeline.go:131 → store/gen/notifications.sql.go:318 →
-    pgxpool.Pool.QueryRow → pgx/v5/conn.Query → pgconn.peekMessage →
-    pgproto3.chunkReader.Next → io.ReadAtLeast → bgreader.Read →
-    cond.Wait()`.
-6. `pg_stat_activity` shows the matching backend in `wait_event=ClientRead`
-   (Postgres is waiting for the Go client to read the response).
-7. **Non-scheduled notifications published right after the stuck one are
-   delivered fine by other workers in the pool** — the bug is isolated to
-   whichever worker happened to claim the scheduled message.
+### What the bug actually was
 
-**What we ruled out.**
+The original schema declared:
+
+```sql
+CONSTRAINT notifications_scheduled_status_consistent
+    CHECK (scheduled_at IS NULL OR status IN
+           ('pending','queued','cancelled','scheduled'))
+```
+
+Read as: "if `scheduled_at` is set, status must be in the pre-send set."
+The intent was sensible — block setting `scheduled_at` on a row that's
+already past pre-send. The execution was wrong: the constraint is checked
+on **every** UPDATE, including transitions *out of* pre-send. So when the
+worker ran:
+
+```sql
+UPDATE notifications
+SET status = 'sending', ...
+WHERE id = $1 AND status IN ('pending','queued')
+```
+
+against a row with non-null `scheduled_at`, Postgres rejected the update
+with:
+
+```
+new row for relation "notifications" violates check constraint
+"notifications_scheduled_status_consistent" (SQLSTATE 23514)
+```
+
+The error propagated up through pgx → the worker handler → AMQP
+nack-requeue. The original (May 2026) build's AMQP path did not yet have
+[ADR-0018](docs/adr/0018-retry-tier-publish-path.md)'s wait-tier routing,
+so the message hot-looped instantly. The "hang" presentation we saw in the
+goroutine dumps was probably the symptom of the broker's redelivery
+backpressure + the pgx wire reading the constraint error on a connection
+that was about to be returned — a wire state somewhere between "query
+succeeded" and "error visible to caller."
+
+### Why the original diagnosis was wrong
+
+The goroutine dump showed a worker stuck at
+`bgreader.go:100 → cond.Wait()`. That's a real stack frame, but it's the
+*pgx wire reader's normal idle state* — it's not where a constraint error
+manifests. We pattern-matched the stack to "bgreader bug" because:
+
+- A search for the specific `cond.Wait()` line in `pgx` issues turned up
+  threads about state-machine races.
+- We had no proof the bug was *outside* pgx; the alternative (our schema)
+  was easier to assume than to verify.
+
+We ruled out a lot of credible alternatives (otelpgx, OTel back-pressure,
+pool exhaustion, row-level locks, separate pool, statement_timeout —
+all in the original table below). We did **not** look at the actual
+error returned by `MarkSendingCAS` because we never got far enough to see
+it — the goroutine dump showed a hang, not a returned error, so we
+followed the hang.
+
+The current build (post-[silent-worker-hot-loop fix](docs/adr/0018-retry-tier-publish-path.md)
+and the wrap-error-and-log safety net) surfaces the constraint violation
+clearly:
+
+```
+{"level":"WARN","msg":"delivery returned non-nil error","channel":"sms",
+ "err":"CAS to sending: ERROR: new row for relation \"notifications\"
+        violates check constraint
+        \"notifications_scheduled_status_consistent\" (SQLSTATE 23514)"}
+```
+
+That log line is what flipped the diagnosis. With every error path now
+logged, the actual cause was visible on the first scheduled-notification
+attempt after re-enabling the scheduler.
+
+### What the fix did
+
+[Migration 0010](internal/store/migrations/0010_scheduled_constraint_relax.up.sql)
+drops the constraint. We could have written a stricter replacement that
+distinguishes "INSERT-time validation" from "UPDATE-time" via a trigger,
+but the constraint wasn't load-bearing — the API validator already
+rejects `scheduled_at` on terminal-state rows, and the worker code never
+sets `scheduled_at` on a `sent` row. Dropping it is correct.
+
+After this fix:
+- Scheduled notification with `scheduled_at` ~5s in the future →
+  delivered cleanly within 6s of the due time.
+- Batch of 5 scheduled notifications → 4/5 delivered immediately,
+  1/5 took a retry-tier hop (httpbin.org timeout, unrelated to the
+  schema fix) and delivered on the second attempt.
+- No goroutine hangs observed. No `MarkSendingCAS` errors.
+
+The scheduler feature flag (`SCHEDULER_ENABLED`, default `false`) stays
+in place for now — it's still a one-replica-per-process design without
+leader election, and there are real questions about coordinating multiple
+scheduler dispatchers safely. But the *immediate* blocker is gone.
+
+### Original investigation log (kept for the record)
+
+The hypotheses we ran through before migration 0010:
 
 | Hypothesis | Outcome |
 |---|---|
-| OTel tracing back-pressure | Reproduces with `OTEL_SDK_DISABLED=true` |
-| `otelpgx` interfering with pgx | Reproduces with the tracer commented out |
+| OTel tracing back-pressure | Reproduced with `OTEL_SDK_DISABLED=true` |
+| `otelpgx` interfering with pgx | Reproduced with the tracer commented out |
 | pgxpool exhaustion | `MaxConns=20` is well above all callers; goroutine has a connection |
 | Postgres row-level lock contention | `pg_locks` shows no waits, `pg_stat_activity` shows no other holders |
 | Worker decode / context-propagation bug | The same notification id can be CAS-updated manually from `psql` instantly |
-| `statement_timeout=5000ms` on the connection | PG side actually completed and went idle (`wait_event=ClientRead`). Timeout never fires because there's no in-progress statement to abort. |
-| **Separate pgxpool for scheduler vs workers** | **Reproduces. Pool contention is NOT the root cause.** |
+| `statement_timeout=5000ms` | PG side actually completed and went idle (`wait_event=ClientRead`) |
+| Separate pgxpool for scheduler vs workers | Reproduced. Pool contention not the cause. |
+| **pgx v5 bgreader state corruption** | **Wrong. The hang was a constraint error surfacing on a redelivery loop without an exit.** |
 
-## Diagnosed: pgx bgreader state-corruption
+What we should have done earlier:
 
-The deeper goroutine dump analysis revealed:
+1. **Logged the error from `MarkSendingCAS`.** The original code path
+   was `if errors.Is(err, pgx.ErrNoRows) { log.Info("...drop"); return }`
+   — every non-NoRows error was swallowed and bubbled up as a generic
+   "nack requeue." A single `logger.Error("cas to sending", "err", err)`
+   would have shown the constraint message immediately.
+2. **Read pg_stat_activity for the *active* query, not the *idle*
+   wait_event.** Postgres was idle in `ClientRead` because the constraint
+   error already happened and Postgres was done. We treated `ClientRead`
+   as "PG is waiting for the client to send something" and concluded the
+   client was wedged. In hindsight: PG goes to `ClientRead` after *any*
+   query completes — success or error — while the connection sits in the
+   pool. It says nothing about whether the client is healthy.
+3. **Tried a `SELECT 1` on the row from psql with the same WHERE clause
+   the CAS uses.** Would have surfaced the constraint immediately.
+   We did try a *manual `UPDATE`* from psql, but not the precise CAS
+   shape with all the constraints firing.
 
-```
-Foreground stuck at:
-  bgreader.go:100 → cond.Wait()   ← parked here, status==Running
+### Files involved
 
-Background reader goroutine:
-  (does not exist)                ← zero `bgRead` frames in dump
-```
-
-This is a **broken invariant** inside `pgx/v5/pgconn/internal/bgreader`: the
-foreground caller sees `status == StatusRunning` (so it takes the
-`cond.Wait()` path) but **no `bgRead` goroutine is actually running**.
-Result: the foreground waits forever for a signal that nobody can send.
-
-The suspected race lives in `pgconn.enterPotentialWriteReadDeadlock` +
-`exitPotentialWriteReadDeadlock` interacting with `BGReader.Start` /
-`BGReader.Stop`. Specifically, the `case StatusStopping: r.status =
-StatusRunning` branch in `Start()` flips status back to Running **without
-spawning a fresh `bgRead` goroutine**, relying on the existing one. If the
-existing goroutine exits cleanly through a separate path (e.g. clean
-EOF/timeout), the result is `Running` status with no goroutine.
-
-This is reproducible against pgx v5.9.2 and is bug-class — not configuration
-or schema. The fix likely lives in upstream pgx.
-
-**Likely root cause.** A `pgx` v5 bgreader/cond.Wait() interaction triggered by
-*some* specific combination of:
-- The scheduler holding a brief transaction that inserts an outbox row, and
-- The outbox dispatcher claiming that row almost immediately on its next 250ms tick, and
-- A worker consuming the AMQP message and reaching for a pgxpool connection
-  whose background reader is in a stale state.
-
-This needs a focused pgx-internals investigation. Time-boxed out of the
-assessment build; documented here so it's not silently shipped.
-
-**Workarounds available today.**
-- *For testing / demo*: Non-scheduled notifications work end-to-end at the
-  full 100 msg/s rate-limit ceiling. The scheduler dispatcher fires correctly
-  (proven by the status transition + scheduler log line). The break is
-  downstream in the worker.
-- *For production-ish use*: Set a shorter `statement_timeout` (e.g., 2s) and a
-  worker-side context deadline; the message will fail-and-requeue rather than
-  block a worker forever. The retry tier will pick it up on the second pass
-  (which seems to succeed in our observations, though we haven't fully
-  characterized this).
-
-**Files involved.**
-- [`internal/worker/pipeline.go`](internal/worker/pipeline.go) — `MarkSendingCAS` call site
-- [`internal/scheduler/dispatcher.go`](internal/scheduler/dispatcher.go) — the dispatcher transition
-- [`internal/store/pg.go`](internal/store/pg.go) — pool config
-
-**Next steps if revisiting.**
-1. ✅ ~~Try a separate pool for scheduler vs workers~~ — tested, no effect.
-2. Add `pgx.LogLevelTrace` logging on a fresh small repro.
-3. Try `pool.Reset()` after each scheduler dispatch to invalidate stale conns.
-4. Try `MaxConns=2, MinConns=0` plus `MaxConnLifetime=1s` — force connection
-   recycling. If that fixes it, confirms stale-conn theory.
-5. **Reduce to minimal repro** outside the assessment codebase — two goroutines,
-   one pool, one TX-then-release pattern, one single-statement pattern. Submit
-   upstream to https://github.com/jackc/pgx/issues with the goroutine dump.
+- Migration: [`internal/store/migrations/0010_scheduled_constraint_relax.up.sql`](internal/store/migrations/0010_scheduled_constraint_relax.up.sql)
+- The worker error log that surfaced the bug: [`internal/worker/pipeline.go`](internal/worker/pipeline.go) (`logger.Warn("delivery returned non-nil error", ...)` near `Handle`)
+- The original constraint: [`internal/store/migrations/0001_init.up.sql`](internal/store/migrations/0001_init.up.sql), lines 50-53
