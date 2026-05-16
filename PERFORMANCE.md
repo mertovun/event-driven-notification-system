@@ -1,14 +1,18 @@
 # Performance Analysis
 
 This document captures bottleneck analysis from `pprof` profiling under
-sustained k6 load on a single-replica stack. We measured the system in **three
+sustained k6 load on a single-replica stack. We measured the system in **four
 phases**:
 
 1. **Baseline** — 50 RPS, original auth path. CPU was ~96% argon2id.
 2. **Cached auth** — 50 RPS after the verified-key cache landed. Same RPS,
-   16× lower p99, ~57× less CPU work per request.
-3. **Saturation** — 500→4000 RPS ramp. Found the next ceiling: **Postgres
-   connection-pool acquire** at ~1600 RPS, exactly as predicted in Tier 3.
+   15× lower p99, ~57× less CPU work per request.
+3. **Saturation (pool=20)** — 500→4000 RPS ramp. Found the next ceiling:
+   **Postgres connection-pool acquire** at ~1611 RPS, exactly as predicted
+   in Tier 3.
+4. **Wider pool (pool=100, pg max_conns=200)** — same saturation ramp.
+   1,771 RPS sustained with 0 failures and p95=2.44 ms. CPU at ~20% of one
+   core. The system is no longer CPU- or pool-bound from the inside.
 
 The raw profiles are committed in [`loadtest/profiles/`](loadtest/profiles/)
 and reproducible via:
@@ -241,6 +245,65 @@ already drained by the time we captured the goroutine dump.
 
 ---
 
+---
+
+## Phase 4 — Wider connection pool (post-saturation fix)
+
+Two changes:
+- App: `MaxConns = 100, MinConns = 4` (was 20 / 2) in
+  [`internal/store/pg.go`](internal/store/pg.go#L20).
+- Postgres: `max_connections=200` (was default 100) in
+  [`deploy/docker-compose.yml`](deploy/docker-compose.yml). Required because
+  the app pool now wants 100 conns and the default leaves only ~97 for
+  non-superusers — without raising the Postgres ceiling, the first attempt
+  produced `FATAL: sorry, too many clients already` and **worse** throughput.
+
+### k6 result (same 500→4000 RPS ramp)
+
+```
+checks_total.......: 97439   1771.505901/s
+checks_succeeded...: 100.00% 97439 out of 97439
+checks_failed......: 0.00%   0 out of 97439
+http_req_duration..: avg=10.72ms  med=1.02ms  p(90)=1.89ms  p(95)=2.44ms  max=2.45s
+dropped_iterations.: 60 (down from 17,571)
+vus_max............: 560 (k6 didn't need its 5000-VU headroom)
+```
+
+### Before / after on the saturation ramp
+
+| Metric | Phase 3 (pool=20) | Phase 3 (pool=100, pg=100) | Phase 4 (pool=100, pg=200) |
+|---|---|---|---|
+| Sustained RPS | 1,611 | 1,453 (**worse**) | **1,771** |
+| Failures | 8.63% | 16.59% | **0.00%** |
+| p95 (all) | 2.74 s | 2.78 s | **2.44 ms** (~1100× lower) |
+| p95 (success) | 3.64 ms | 2.63 ms | 2.44 ms |
+| Dropped iterations | 8,887 | 17,571 | **60** |
+
+The middle column is the **misconfigured attempt** — pgxpool asked for 100
+conns from a Postgres allowing 97. We kept that data point because it
+illustrates why "bump the pool" is not a one-line change: pool sizing has
+to match the server's `max_connections` minus its own overhead.
+
+### CPU profile at 1771 RPS
+
+```
+Duration: 18s, Total samples = 3.56s (19.78%)
+Top flat:
+  1.31s  36.80%  Syscall6                       (epoll/socket I/O)
+  0.29s   8.15%  runtime.futex                  (scheduler waits)
+  0.08s   2.25%  argon2.processBlockGeneric     (cache-miss tail, well-shaped)
+  ...    < 1%   per-call site
+```
+
+Total samples = 19.78% of one core. **The system is doing 1,771 inserts/s
+into Postgres on a fifth of a CPU core.** There is no application hot spot;
+remaining time is Postgres I/O (`pgx.Conn.Query` 16% cum) and the runtime
+scheduler. The next bottleneck is no longer visible from the inside — it
+would have to be found by pushing past 4000 target RPS with a distributed
+load generator.
+
+---
+
 ## Recommendations
 
 Now reflecting what we actually measured, not what we predicted.
@@ -249,16 +312,11 @@ Now reflecting what we actually measured, not what we predicted.
 
 **Verified-key cache** — landed. See Phase 2 above.
 
-### Tier 2 — next, if production targets exceed ~1500 RPS per replica
+### Tier 2 — done ✅
 
-**Raise pgxpool `MaxConns`.** Direct fix for the saturation ceiling.
-- `MaxConns = 100` is a reasonable single-replica target if Postgres can
-  accept it (default `max_connections=100` on a fresh Postgres).
-- Higher than ~200 per replica typically requires pgbouncer or RDS Proxy
-  in front, otherwise Postgres backend memory dominates.
-- Combine with `MinConns` warmup so cold-start latency does not spike.
-
-**Estimate**: 1-line change + a load test. ~30 minutes.
+**Wider connection pool** — landed. See Phase 4 above. App `MaxConns=100`,
+Postgres `max_connections=200`. The Postgres bump is the load-bearing half
+of the change; bumping pgxpool alone makes things worse.
 
 **Tune argon2 parameters under measurement.** The current parameters
 (`t=2, m=64MB, p=1`) are OWASP-recommended baselines. With the cache,
@@ -336,6 +394,9 @@ Profiles committed under [`loadtest/profiles/`](loadtest/profiles/):
 | `cpu-cached.pprof` | 2 | 25s CPU profile, 50 RPS, post-cache |
 | `heap-cached.pprof`, `allocs-cached.pprof` | 2 | heap + alloc snapshots, post-cache |
 | `goroutine-cached.txt` | 2 | goroutine dump, post-cache |
-| `cpu-saturation.pprof` | 3 | 20s CPU profile during 500→4000 RPS ramp |
-| `heap-saturation.pprof` | 3 | heap snapshot at saturation |
-| `goroutine-saturation.txt` | 3 | goroutine dump post-saturation |
+| `cpu-saturation.pprof` | 3 | 20s CPU profile during 500→4000 RPS ramp, pool=20 |
+| `heap-saturation.pprof` | 3 | heap snapshot at saturation, pool=20 |
+| `goroutine-saturation.txt` | 3 | goroutine dump post-saturation, pool=20 |
+| `cpu-pool100.pprof` | 4 | 18s CPU profile during 500→4000 RPS ramp, pool=100 / pg=200 |
+| `heap-pool100.pprof` | 4 | heap snapshot, pool=100 / pg=200 |
+| `goroutine-pool100.txt` | 4 | goroutine dump, pool=100 / pg=200 |

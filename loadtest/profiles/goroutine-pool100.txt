@@ -1,0 +1,1981 @@
+goroutine 102727 [running]:
+runtime/pprof.writeGoroutineStacks({0xffff5815ae00, 0x7d46f2ed0a00})
+	runtime/pprof/pprof.go:819 +0x6c
+runtime/pprof.writeGoroutine({0xffff5815ae00?, 0x7d46f2ed0a00?}, 0x7d46f1e646e0?)
+	runtime/pprof/pprof.go:782 +0x2c
+runtime/pprof.(*Profile).WriteTo(0x17f9860?, {0xffff5815ae00?, 0x7d46f2ed0a00?}, 0xc?)
+	runtime/pprof/pprof.go:408 +0x144
+net/http/pprof.handler.ServeHTTP({0x7d46f21db821, 0x9}, {0xffff58159b20, 0x7d46f2ed0a00}, 0x7d46f1e3d7c0)
+	net/http/pprof/pprof.go:273 +0x414
+github.com/mertovun/event-driven-notification-system/internal/api.NewRouter.mountPProf.func7.1({0xffff58159b20, 0x7d46f2ed0a00}, 0x7d46f1e3d7c0)
+	github.com/mertovun/event-driven-notification-system/internal/api/pprof.go:29 +0x58
+net/http.HandlerFunc.ServeHTTP(0xbca220?, {0xffff58159b20?, 0x7d46f2ed0a00?}, 0x4?)
+	net/http/server.go:2286 +0x38
+github.com/go-chi/chi/v5.(*Mux).routeHTTP(0x7d46ee4300c0, {0xffff58159b20, 0x7d46f2ed0a00}, 0x7d46f1e3d7c0)
+	github.com/go-chi/chi/v5@v5.2.5/mux.go:479 +0x3c4
+net/http.HandlerFunc.ServeHTTP(0x7d46eee34ec8?, {0xffff58159b20?, 0x7d46f2ed0a00?}, 0x7d46eee34ea8?)
+	net/http/server.go:2286 +0x38
+github.com/go-chi/chi/v5.(*Mux).ServeHTTP(0x7d46ee4300c0, {0xffff58159b20, 0x7d46f2ed0a00}, 0x7d46f1e3d7c0)
+	github.com/go-chi/chi/v5@v5.2.5/mux.go:73 +0x2ac
+github.com/go-chi/chi/v5.(*Mux).Mount.func1({0xffff58159b20, 0x7d46f2ed0a00}, 0x7d46f1e3d7c0)
+	github.com/go-chi/chi/v5@v5.2.5/mux.go:321 +0x1b4
+net/http.HandlerFunc.ServeHTTP(0xbca220?, {0xffff58159b20?, 0x7d46f2ed0a00?}, 0x1?)
+	net/http/server.go:2286 +0x38
+github.com/go-chi/chi/v5.(*Mux).routeHTTP(0x7d46ee430000, {0xffff58159b20, 0x7d46f2ed0a00}, 0x7d46f1e3d7c0)
+	github.com/go-chi/chi/v5@v5.2.5/mux.go:479 +0x3c4
+net/http.HandlerFunc.ServeHTTP(0x7d46eee350e8?, {0xffff58159b20?, 0x7d46f2ed0a00?}, 0x0?)
+	net/http/server.go:2286 +0x38
+github.com/mertovun/event-driven-notification-system/internal/api.Recoverer.func1({0xffff58159b20?, 0x7d46f2ed0a00?}, 0x7d46eee35138?)
+	github.com/mertovun/event-driven-notification-system/internal/api/middleware.go:126 +0x6c
+net/http.HandlerFunc.ServeHTTP(0xffff58159b20?, {0xffff58159b20?, 0x7d46f2ed0a00?}, 0x30198?)
+	net/http/server.go:2286 +0x38
+github.com/mertovun/event-driven-notification-system/internal/api.NewRouter.MetricsMiddleware.func4.1({0xffff58159b20, 0x7d46f2ed0980}, 0x7d46f1e3d7c0)
+	github.com/mertovun/event-driven-notification-system/internal/api/metrics_middleware.go:34 +0x240
+net/http.HandlerFunc.ServeHTTP(0xdc8560?, {0xffff58159b20?, 0x7d46f2ed0980?}, 0x0?)
+	net/http/server.go:2286 +0x38
+github.com/mertovun/event-driven-notification-system/internal/api.AccessLog.func1({0xdc8560, 0x7d46f21fb320}, 0x7d46f1e3d7c0)
+	github.com/mertovun/event-driven-notification-system/internal/api/middleware.go:90 +0x15c
+net/http.HandlerFunc.ServeHTTP(0x7d46f1e3d680?, {0xdc8560?, 0x7d46f21fb320?}, 0xdb14f8?)
+	net/http/server.go:2286 +0x38
+github.com/mertovun/event-driven-notification-system/internal/api.NewRouter.WithLogger.func2.1({0xdc8560, 0x7d46f21fb320}, 0x7d46f1e3d680)
+	github.com/mertovun/event-driven-notification-system/internal/api/middleware.go:59 +0x90
+net/http.HandlerFunc.ServeHTTP(0xdca270?, {0xdc8560?, 0x7d46f21fb320?}, 0xdb4288?)
+	net/http/server.go:2286 +0x38
+github.com/mertovun/event-driven-notification-system/internal/api.CorrelationID.func1({0xdc8560, 0x7d46f21fb320}, 0x7d46f1e3d540)
+	github.com/mertovun/event-driven-notification-system/internal/api/middleware.go:44 +0x268
+net/http.HandlerFunc.ServeHTTP(0xdca270?, {0xdc8560?, 0x7d46f21fb320?}, 0x17f05b0?)
+	net/http/server.go:2286 +0x38
+github.com/go-chi/chi/v5.(*Mux).ServeHTTP(0x7d46ee430000, {0xdc8560, 0x7d46f21fb320}, 0x7d46f1e3d400)
+	github.com/go-chi/chi/v5@v5.2.5/mux.go:90 +0x26c
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP(0x7d46ee458100, {0xdc7818, 0x7d46f21fd0e0}, 0x7d46f1e3d2c0, {0xdbd340, 0x7d46ee430000})
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.61.0/handler.go:180 +0xf78
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func1.1({0xdc7818?, 0x7d46f21fd0e0?}, 0x7d46f1d5e7e8?)
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.61.0/handler.go:67 +0x3c
+net/http.HandlerFunc.ServeHTTP(0x0?, {0xdc7818?, 0x7d46f21fd0e0?}, 0x7d46f4cbeb50?)
+	net/http/server.go:2286 +0x38
+net/http.serverHandler.ServeHTTP({0x7d46f2ed07c0?}, {0xdc7818?, 0x7d46f21fd0e0?}, 0x1?)
+	net/http/server.go:3311 +0xb0
+net/http.(*conn).serve(0x7d46f1e35290, {0xdca270, 0x7d46ee621e00})
+	net/http/server.go:2073 +0x51c
+created by net/http.(*Server).Serve in goroutine 150
+	net/http/server.go:3464 +0x37c
+
+goroutine 1 [sync.WaitGroup.Wait, 1 minutes]:
+sync.runtime_SemacquireWaitGroup(0x7d46ee33c1e0?, 0x0?)
+	runtime/sema.go:114 +0x38
+sync.(*WaitGroup).Wait(0x7d46ee891ac8)
+	sync/waitgroup.go:206 +0xa8
+golang.org/x/sync/errgroup.(*Group).Wait(0x7d46ee891ac0)
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x28
+main.run({0xdca4f0, 0x7d46ee590140}, {{0x7d46ee34a00d, 0x3}, {0x7d46ee34a01a, 0x5}, {0x7d46ee34a02a, 0x4}, {0x7d46ee37a05d, 0x3a}, ...}, ...)
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:258 +0x1454
+main.main()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:81 +0x5f4
+
+goroutine 17 [syscall, 1 minutes]:
+os/signal.signal_recv()
+	runtime/sigqueue.go:152 +0x114
+os/signal.loop()
+	os/signal/signal_unix.go:23 +0x1c
+created by os/signal.Notify.func1.1 in goroutine 1
+	os/signal/signal.go:152 +0x28
+
+goroutine 18 [select, 1 minutes]:
+os/signal.NotifyContext.func1()
+	os/signal/signal.go:292 +0x74
+created by os/signal.NotifyContext in goroutine 1
+	os/signal/signal.go:291 +0x134
+
+goroutine 111 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58126800, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee7b0500?, 0x7d46ee7d1000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee7b0500, {0x7d46ee7d1000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee7b0500, {0x7d46ee7d1000?, 0xbafbe0?, 0x7d46ee600960?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee7ce000, {0x7d46ee7d1000?, 0x7d46ee802008?, 0x7d49057b6340?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee7ea000, {0x7d49057b6340, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee7ea000}, {0x7d49057b6340, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee5aaf18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee7e2000, {0xdbd9c0, 0x7d46ee7ce000?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 163
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 16 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 168
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 11 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 161
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 137 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58166200, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee7b0380?, 0x7d46ee825000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee7b0380, {0x7d46ee825000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee7b0380, {0x7d46ee825000?, 0xbafbe0?, 0x7d46ee4043c0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee920070, {0x7d46ee825000?, 0x7d46ee355f80?, 0xdcb618?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee65e120, {0x7d46f21db729, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee65e120}, {0x7d46f21db729, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee355f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee644000, {0xdbd9c0, 0x7d46ee920070?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 1
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 38 [select]:
+github.com/jackc/pgx/v5/pgxpool.(*Pool).backgroundHealthCheck(0x7d46ee4181c0)
+	github.com/jackc/pgx/v5@v5.9.2/pgxpool/pool.go:495 +0xa0
+github.com/jackc/pgx/v5/pgxpool.NewWithConfig.func5()
+	github.com/jackc/pgx/v5@v5.9.2/pgxpool/pool.go:338 +0x3c
+created by github.com/jackc/pgx/v5/pgxpool.NewWithConfig in goroutine 1
+	github.com/jackc/pgx/v5@v5.9.2/pgxpool/pool.go:335 +0x3dc
+
+goroutine 15 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee45ccc0, 0x7d46f2c06c40, 0x7d46f2c06bd0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 157
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 13 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 167
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 51 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 159
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 14 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee43c6f0, 0x7d46f2c06b60, 0x7d46f2c06af0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 164
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 12 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee45c1e0, 0x7d46f2c068c0, 0x7d46f2c06850)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 158
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 139 [IO wait]:
+internal/poll.runtime_pollWait(0xffff57dfe600, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee4dc200?, 0x7d46ee84b000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee4dc200, {0x7d46ee84b000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee4dc200, {0x7d46ee84b000?, 0x0?, 0x0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee9200d0, {0x7d46ee84b000?, 0x7d46eecec008?, 0x7d49078f78b0?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee65e300, {0x7d49078f78b0, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee65e300}, {0x7d49078f78b0, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee835f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee6442c0, {0xdbd9c0, 0x7d46ee9200d0?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 153
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 114 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee644000, 0x37e11d600, 0x7d46ee4462a0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 1
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 120 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46f298a7b0, 0x7d46ee7ab180, 0x7d46ee7ab110)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 172
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 117 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58126000, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee57c180?, 0x7d46ee65d000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee57c180, {0x7d46ee65d000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee57c180, {0x7d46ee65d000?, 0xbafbe0?, 0x7d46ee7323c0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee402338, {0x7d46ee65d000?, 0x7d46ee802008?, 0x7d49057b6330?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee58e180, {0x7d49057b6330, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee58e180}, {0x7d49057b6330, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46f2a87f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee6382c0, {0xdbd9c0, 0x7d46ee402338?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 168
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 118 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58126200, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee7b0580?, 0x7d46ee671000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee7b0580, {0x7d46ee671000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee7b0580, {0x7d46ee671000?, 0xbafbe0?, 0x7d46ee7325a0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee402348, {0x7d46ee671000?, 0x7d46ee354f80?, 0x7d49057b6320?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee58e1e0, {0x7d49057b6322, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee58e1e0}, {0x7d49057b6322, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee354f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee638420, {0xdbd9c0, 0x7d46ee402348?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 161
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 119 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee644580, 0x37e11d600, 0x7d46ee5464d0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 160
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 140 [IO wait]:
+internal/poll.runtime_pollWait(0xffff57dff000, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee57c800?, 0x7d46ee84d000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee57c800, {0x7d46ee84d000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee57c800, {0x7d46ee84d000?, 0xbafbe0?, 0x7d46ee732960?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee9200e0, {0x7d46ee84d000?, 0x7d46ee802008?, 0x7d49057b6370?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee65e360, {0x7d49057b6370, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee65e360}, {0x7d49057b6370, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee480f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee644420, {0xdbd9c0, 0x7d46ee9200e0?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 172
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 145 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Publisher).watchClose(0x7d46ee7ca0a0, {0xdca4f0, 0x7d46ee590140}, 0x7d46ee64a070)
+	github.com/mertovun/event-driven-notification-system/internal/queue/publisher.go:92 +0x8c
+created by github.com/mertovun/event-driven-notification-system/internal/queue.(*Publisher).dial in goroutine 1
+	github.com/mertovun/event-driven-notification-system/internal/queue/publisher.go:85 +0x390
+
+goroutine 146 [IO wait]:
+internal/poll.runtime_pollWait(0xffff580c7c00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46f5bc9700?, 0x7d46f398c000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46f5bc9700, {0x7d46f398c000, 0x2000, 0x2000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46f5bc9700, {0x7d46f398c000?, 0x4?, 0x8000000000?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee882610, {0x7d46f398c000?, 0x7d46ee681098?, 0x701700?})
+	net/net.go:196 +0x34
+github.com/jackc/pgx/v5/pgconn/internal/bgreader.(*BGReader).Read(0x7d46f68f9b80, {0x7d46f398c000, 0x2000, 0x2000})
+	github.com/jackc/pgx/v5@v5.9.2/pgconn/internal/bgreader/bgreader.go:100 +0xa4
+io.ReadAtLeast({0xdc0a00, 0x7d46f68f9b80}, {0x7d46f398c000, 0x2000, 0x2000}, 0x5)
+	io/io.go:335 +0x98
+github.com/jackc/pgx/v5/pgproto3.(*chunkReader).Next(0x7d46f2b259b0, 0x5)
+	github.com/jackc/pgx/v5@v5.9.2/pgproto3/chunkreader.go:80 +0x24c
+github.com/jackc/pgx/v5/pgproto3.(*Frontend).Receive(0x7d46f3988908)
+	github.com/jackc/pgx/v5@v5.9.2/pgproto3/frontend.go:309 +0x34
+github.com/jackc/pgx/v5/pgconn.(*PgConn).peekMessage(0x7d46f3434108)
+	github.com/jackc/pgx/v5@v5.9.2/pgconn/pgconn.go:595 +0x180
+github.com/jackc/pgx/v5/pgconn.(*PgConn).receiveMessage(0x7d46f3434108)
+	github.com/jackc/pgx/v5@v5.9.2/pgconn/pgconn.go:619 +0x2c
+github.com/jackc/pgx/v5/pgconn.(*ResultReader).receiveMessage(0x7d46f34341b8)
+	github.com/jackc/pgx/v5@v5.9.2/pgconn/pgconn.go:1805 +0x38
+github.com/jackc/pgx/v5/pgconn.(*ResultReader).readUntilRowDescription(0x7d46f34341b8, 0x7d46f494c140, {0x7d46f2cb3180, 0x11, 0x20})
+	github.com/jackc/pgx/v5@v5.9.2/pgconn/pgconn.go:1772 +0x54
+github.com/jackc/pgx/v5/pgconn.(*PgConn).execExtendedSuffix(0x7d46f3434108, 0x7d46f34341b8, 0x7d46f494c140, {0x7d46f2cb3180, 0x11, 0x20})
+	github.com/jackc/pgx/v5@v5.9.2/pgconn/pgconn.go:1307 +0x16c
+github.com/jackc/pgx/v5/pgconn.(*PgConn).ExecStatement(0x7d46f3434108, {0xdca270?, 0x7d46f1e3ba10?}, 0x7d46f494c140, {0x7d46f41ba480, 0x1, 0x10}, {0x7d46f2988ce0, 0x1, 0x10}, ...)
+	github.com/jackc/pgx/v5@v5.9.2/pgconn/pgconn.go:1250 +0x108
+github.com/jackc/pgx/v5.(*Conn).Query(0x7d46f2efb7c0, {0xdca270?, 0x7d46f0be7380?}, {0xd9eb5e, 0x14d}, {0x7d46f1e53d00, 0x1, 0x1})
+	github.com/jackc/pgx/v5@v5.9.2/conn.go:847 +0xebc
+github.com/jackc/pgx/v5.(*Conn).QueryRow(...)
+	github.com/jackc/pgx/v5@v5.9.2/conn.go:931
+github.com/jackc/pgx/v5/pgxpool.(*Conn).QueryRow(0x7d46ee4181c0?, {0xdca270?, 0x7d46f0be7380?}, {0xd9eb5e?, 0x10?}, {0x7d46f1e53d00?, 0x7d46f1e35348?, 0x7d46f1e46000?})
+	github.com/jackc/pgx/v5@v5.9.2/pgxpool/conn.go:95 +0x4c
+github.com/jackc/pgx/v5/pgxpool.(*Pool).QueryRow(0xcd0020?, {0xdca270, 0x7d46f0be7380}, {0xd9eb5e, 0x14d}, {0x7d46f1e53d00, 0x1, 0x1})
+	github.com/jackc/pgx/v5@v5.9.2/pgxpool/pool.go:772 +0x60
+github.com/mertovun/event-driven-notification-system/internal/store/gen.(*Queries).MarkQueued(_, {_, _}, {0x1, 0x9e, 0x30, 0x23, 0x36, 0x1c, 0x75, ...})
+	github.com/mertovun/event-driven-notification-system/internal/store/gen/notifications.sql.go:282 +0xcc
+github.com/mertovun/event-driven-notification-system/internal/outbox.(*Dispatcher).publishRow(0x7d46ee634280, {0xdca2a8, _}, {{0xc, 0x6c, 0x5b, 0x4c, 0x60, 0x3, 0x48, ...}, ...})
+	github.com/mertovun/event-driven-notification-system/internal/outbox/dispatcher.go:148 +0x53c
+github.com/mertovun/event-driven-notification-system/internal/outbox.(*Dispatcher).tick(0x7d46ee634280, {0xdca2a8, 0x7d46ee6347d0})
+	github.com/mertovun/event-driven-notification-system/internal/outbox/dispatcher.go:97 +0x244
+github.com/mertovun/event-driven-notification-system/internal/outbox.(*Dispatcher).Run(0x7d46ee634280, {0xdca2a8, 0x7d46ee6347d0})
+	github.com/mertovun/event-driven-notification-system/internal/outbox/dispatcher.go:73 +0x198
+main.run.func5()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:232 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 147 [select]:
+github.com/mertovun/event-driven-notification-system/internal/scheduler.(*Dispatcher).Run(0x7d46ee636040, {0xdca2a8, 0x7d46ee6347d0})
+	github.com/mertovun/event-driven-notification-system/internal/scheduler/dispatcher.go:56 +0x150
+main.run.func6()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:235 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 148 [sync.WaitGroup.Wait, 1 minutes]:
+sync.runtime_SemacquireWaitGroup(0x0?, 0x0?)
+	runtime/sema.go:114 +0x38
+sync.(*WaitGroup).Wait(0x7d46ee891b08)
+	sync/waitgroup.go:206 +0xa8
+golang.org/x/sync/errgroup.(*Group).Wait(0x7d46ee891b00)
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x28
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run(0x7d46ee43e080, {0xdca2a8?, 0x7d46ee6347d0?})
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:116 +0x404
+main.run.func7()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:238 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 149 [select]:
+github.com/mertovun/event-driven-notification-system/internal/ws.(*Hub).Run(0x7d46ee7a0540, {0xdca2a8, 0x7d46ee6347d0})
+	github.com/mertovun/event-driven-notification-system/internal/ws/hub.go:57 +0x198
+main.run.func8()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:240 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 150 [IO wait]:
+internal/poll.runtime_pollWait(0xffff57f2be00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee43e300?, 0x10b5bc?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0x7d46ee43e300)
+	internal/poll/fd_unix.go:613 +0x214
+net.(*netFD).accept(0x7d46ee43e300)
+	net/fd_unix.go:150 +0x28
+net.(*TCPListener).accept(0x7d46ee891d00)
+	net/tcpsock_posix.go:159 +0x24
+net.(*TCPListener).Accept(0x7d46ee891d00)
+	net/tcpsock.go:387 +0x2c
+net/http.(*Server).Serve(0x7d46ee458200, {0xdc7c90, 0x7d46ee891d00})
+	net/http/server.go:3434 +0x244
+net/http.(*Server).ListenAndServe(0x7d46ee458200)
+	net/http/server.go:3360 +0x80
+main.run.func9()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:244 +0x9c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 151 [chan receive, 1 minutes]:
+main.run.func10()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:251 +0x48
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 152 [select]:
+net/http.(*http2ClientConn).roundTrip(0x7d46f30aa000, 0x7d46f1c78280, 0x0)
+	net/http/h2_bundle.go:8688 +0x408
+net/http.(*http2ClientConn).RoundTrip(...)
+	net/http/h2_bundle.go:8603
+net/http.(*http2Transport).RoundTripOpt(0x7d46f2f261e0, 0x7d46f1c78280, {0x80?, 0x82?})
+	net/http/h2_bundle.go:7901 +0x20c
+net/http.(*http2Transport).RoundTrip(...)
+	net/http/h2_bundle.go:7852
+net/http.http2noDialH2RoundTripper.RoundTrip({0x7d46ee4ce000?}, 0x7d46f1c78280?)
+	net/http/h2_bundle.go:10560 +0x28
+net/http.(*Transport).roundTrip(0x7d46ee4ce000, 0x7d46f1c78140)
+	net/http/transport.go:623 +0x3ec
+net/http.(*Transport).RoundTrip(0x7d46f1c78140?, 0xdbcb40?)
+	net/http/roundtrip.go:33 +0x20
+net/http.send(0x7d46f1c78000, {0xdbcb40, 0x7d46ee4ce000}, {0xd14720?, 0xd0febe3266d3?, 0x181ec20?})
+	net/http/client.go:264 +0x4a0
+net/http.(*Client).send(0x7d46ee79b290, 0x7d46f1c78000, {0x7d46f2a3a7e8?, 0x9495c?, 0x181ec20?})
+	net/http/client.go:185 +0x1e4
+net/http.(*Client).do(0x7d46ee79b290, 0x7d46f1c78000)
+	net/http/client.go:733 +0x710
+net/http.(*Client).Do(...)
+	net/http/client.go:592
+github.com/mertovun/event-driven-notification-system/internal/provider.(*HTTPClient).Send(0x7d46ee79b260, {0xdca270, 0x7d46f1c59e90}, {{0x7d490c443450, 0xd}, {0x7d490c443440, 0x3}, {0x7d490c443443, 0x7}}, {0x7d46f1c55e00, ...})
+	github.com/mertovun/event-driven-notification-system/internal/provider/httpclient.go:184 +0x494
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:198 +0x5c
+github.com/sony/gobreaker.(*CircuitBreaker).Execute(0x7d46ee5173b0, 0x7d46f2a3b3b8)
+	github.com/sony/gobreaker@v1.0.0/gobreaker.go:242 +0x94
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xdc89f0, 0x7d46f2c10000}, 0x7d46f1c59e00, {0x7d490c4433e0, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:197 +0xad0
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xdc89f0, 0x7d46f2c10000}, 0x7d46f1c59e00, {0x7d490c4433e0, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:97 +0x118
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee71a380, {0xdca2a8, 0x7d46ee634820}, 0x7d46f2a3bf20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:104 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 153 [select]:
+net/http.(*http2ClientConn).roundTrip(0x7d46f30aa000, 0x7d46f0bc3900, 0x0)
+	net/http/h2_bundle.go:8688 +0x408
+net/http.(*http2ClientConn).RoundTrip(...)
+	net/http/h2_bundle.go:8603
+net/http.(*http2Transport).RoundTripOpt(0x7d46f2f261e0, 0x7d46f0bc3900, {0x0?, 0x39?})
+	net/http/h2_bundle.go:7901 +0x20c
+net/http.(*http2Transport).RoundTrip(...)
+	net/http/h2_bundle.go:7852
+net/http.http2noDialH2RoundTripper.RoundTrip({0x7d46ee4ce000?}, 0x7d46f0bc3900?)
+	net/http/h2_bundle.go:10560 +0x28
+net/http.(*Transport).roundTrip(0x7d46ee4ce000, 0x7d46f0bc37c0)
+	net/http/transport.go:623 +0x3ec
+net/http.(*Transport).RoundTrip(0x7d46f0bc37c0?, 0xdbcb40?)
+	net/http/roundtrip.go:33 +0x20
+net/http.send(0x7d46f0bc3680, {0xdbcb40, 0x7d46ee4ce000}, {0xd14720?, 0xd0feee2c576c?, 0x181ec20?})
+	net/http/client.go:264 +0x4a0
+net/http.(*Client).send(0x7d46ee79b290, 0x7d46f0bc3680, {0x7d46ee8f47e8?, 0x9495c?, 0x181ec20?})
+	net/http/client.go:185 +0x1e4
+net/http.(*Client).do(0x7d46ee79b290, 0x7d46f0bc3680)
+	net/http/client.go:733 +0x710
+net/http.(*Client).Do(...)
+	net/http/client.go:592
+github.com/mertovun/event-driven-notification-system/internal/provider.(*HTTPClient).Send(0x7d46ee79b260, {0xdca270, 0x7d46f0bc5500}, {{0x7d49078f78d0, 0xd}, {0x7d49078f78c0, 0x3}, {0x7d49078f78c3, 0x7}}, {0x7d46f0bda2a0, ...})
+	github.com/mertovun/event-driven-notification-system/internal/provider/httpclient.go:184 +0x494
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:198 +0x5c
+github.com/sony/gobreaker.(*CircuitBreaker).Execute(0x7d46ee5173b0, 0x7d46ee8f53b8)
+	github.com/sony/gobreaker@v1.0.0/gobreaker.go:242 +0x94
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xdc89f0, 0x7d46ee8ca900}, 0x7d46f0bc5470, {0x7d49078f7860, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:197 +0xad0
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xdc89f0, 0x7d46ee8ca900}, 0x7d46f0bc5470, {0x7d49078f7860, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:97 +0x118
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee6fcd00, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee8f5f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:104 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 154 [select]:
+net/http.(*http2ClientConn).roundTrip(0x7d46f30aa000, 0x7d46f1cd9680, 0x0)
+	net/http/h2_bundle.go:8688 +0x408
+net/http.(*http2ClientConn).RoundTrip(...)
+	net/http/h2_bundle.go:8603
+net/http.(*http2Transport).RoundTripOpt(0x7d46f2f261e0, 0x7d46f1cd9680, {0x80?, 0x96?})
+	net/http/h2_bundle.go:7901 +0x20c
+net/http.(*http2Transport).RoundTrip(...)
+	net/http/h2_bundle.go:7852
+net/http.http2noDialH2RoundTripper.RoundTrip({0x7d46ee4ce000?}, 0x7d46f1cd9680?)
+	net/http/h2_bundle.go:10560 +0x28
+net/http.(*Transport).roundTrip(0x7d46ee4ce000, 0x7d46f1cd9540)
+	net/http/transport.go:623 +0x3ec
+net/http.(*Transport).RoundTrip(0x7d46f1cd9540?, 0xdbcb40?)
+	net/http/roundtrip.go:33 +0x20
+net/http.send(0x7d46f1cd9400, {0xdbcb40, 0x7d46ee4ce000}, {0xd14720?, 0xd0fed151ecbb?, 0x181ec20?})
+	net/http/client.go:264 +0x4a0
+net/http.(*Client).send(0x7d46ee79b290, 0x7d46f1cd9400, {0x7d46ee8f87e8?, 0x9495c?, 0x181ec20?})
+	net/http/client.go:185 +0x1e4
+net/http.(*Client).do(0x7d46ee79b290, 0x7d46f1cd9400)
+	net/http/client.go:733 +0x710
+net/http.(*Client).Do(...)
+	net/http/client.go:592
+github.com/mertovun/event-driven-notification-system/internal/provider.(*HTTPClient).Send(0x7d46ee79b260, {0xdca270, 0x7d46f1ce4510}, {{0x7d490c688810, 0xd}, {0x7d490c688800, 0x3}, {0x7d490c688803, 0x7}}, {0x7d46f1cd7020, ...})
+	github.com/mertovun/event-driven-notification-system/internal/provider/httpclient.go:184 +0x494
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:198 +0x5c
+github.com/sony/gobreaker.(*CircuitBreaker).Execute(0x7d46ee5173b0, 0x7d46ee8f93b8)
+	github.com/sony/gobreaker@v1.0.0/gobreaker.go:242 +0x94
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xdc89f0, 0x7d46f2b2cb40}, 0x7d46f1ce4480, {0x7d490c6887a0, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:197 +0xad0
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xdc89f0, 0x7d46f2b2cb40}, 0x7d46f1ce4480, {0x7d490c6887a0, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:97 +0x118
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46f2992200, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee8f9f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:104 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 155 [select]:
+net/http.(*http2ClientConn).roundTrip(0x7d46f30aa000, 0x7d46f1e3c140, 0x0)
+	net/http/h2_bundle.go:8688 +0x408
+net/http.(*http2ClientConn).RoundTrip(...)
+	net/http/h2_bundle.go:8603
+net/http.(*http2Transport).RoundTripOpt(0x7d46f2f261e0, 0x7d46f1e3c140, {0x40?, 0xc1?})
+	net/http/h2_bundle.go:7901 +0x20c
+net/http.(*http2Transport).RoundTrip(...)
+	net/http/h2_bundle.go:7852
+net/http.http2noDialH2RoundTripper.RoundTrip({0x7d46ee4ce000?}, 0x7d46f1e3c140?)
+	net/http/h2_bundle.go:10560 +0x28
+net/http.(*Transport).roundTrip(0x7d46ee4ce000, 0x7d46f1e3c000)
+	net/http/transport.go:623 +0x3ec
+net/http.(*Transport).RoundTrip(0x7d46f1e3c000?, 0xdbcb40?)
+	net/http/roundtrip.go:33 +0x20
+net/http.send(0x7d46f1e03cc0, {0xdbcb40, 0x7d46ee4ce000}, {0xd14720?, 0xd0feef54695e?, 0x181ec20?})
+	net/http/client.go:264 +0x4a0
+net/http.(*Client).send(0x7d46ee79b290, 0x7d46f1e03cc0, {0x7d46f2ab47e8?, 0x9495c?, 0x181ec20?})
+	net/http/client.go:185 +0x1e4
+net/http.(*Client).do(0x7d46ee79b290, 0x7d46f1e03cc0)
+	net/http/client.go:733 +0x710
+net/http.(*Client).Do(...)
+	net/http/client.go:592
+github.com/mertovun/event-driven-notification-system/internal/provider.(*HTTPClient).Send(0x7d46ee79b260, {0xdca270, 0x7d46f1e0fd40}, {{0x7d490a7b5100, 0xd}, {0x7d490a7b50f0, 0x3}, {0x7d490a7b50f3, 0x7}}, {0x7d46f1e256e0, ...})
+	github.com/mertovun/event-driven-notification-system/internal/provider/httpclient.go:184 +0x494
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:198 +0x5c
+github.com/sony/gobreaker.(*CircuitBreaker).Execute(0x7d46ee5173b0, 0x7d46f2ab53b8)
+	github.com/sony/gobreaker@v1.0.0/gobreaker.go:242 +0x94
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xdc89f0, 0x7d46f2b2c5a0}, 0x7d46f1e0fcb0, {0x7d490a7b5090, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:197 +0xad0
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xdc89f0, 0x7d46f2b2c5a0}, 0x7d46f1e0fcb0, {0x7d490a7b5090, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:97 +0x118
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee470080, {0xdca2a8, 0x7d46ee634820}, 0x7d46f2ab5f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:104 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 156 [select]:
+net/http.(*http2ClientConn).roundTrip(0x7d46f30aa000, 0x7d46f1f88500, 0x0)
+	net/http/h2_bundle.go:8688 +0x408
+net/http.(*http2ClientConn).RoundTrip(...)
+	net/http/h2_bundle.go:8603
+net/http.(*http2Transport).RoundTripOpt(0x7d46f2f261e0, 0x7d46f1f88500, {0x0?, 0x85?})
+	net/http/h2_bundle.go:7901 +0x20c
+net/http.(*http2Transport).RoundTrip(...)
+	net/http/h2_bundle.go:7852
+net/http.http2noDialH2RoundTripper.RoundTrip({0x7d46ee4ce000?}, 0x7d46f1f88500?)
+	net/http/h2_bundle.go:10560 +0x28
+net/http.(*Transport).roundTrip(0x7d46ee4ce000, 0x7d46f1f883c0)
+	net/http/transport.go:623 +0x3ec
+net/http.(*Transport).RoundTrip(0x7d46f1f883c0?, 0xdbcb40?)
+	net/http/roundtrip.go:33 +0x20
+net/http.send(0x7d46f1f88280, {0xdbcb40, 0x7d46ee4ce000}, {0xd14720?, 0xd0fef2a7a492?, 0x181ec20?})
+	net/http/client.go:264 +0x4a0
+net/http.(*Client).send(0x7d46ee79b290, 0x7d46f1f88280, {0x7d46f2a3e7e8?, 0x9495c?, 0x181ec20?})
+	net/http/client.go:185 +0x1e4
+net/http.(*Client).do(0x7d46ee79b290, 0x7d46f1f88280)
+	net/http/client.go:733 +0x710
+net/http.(*Client).Do(...)
+	net/http/client.go:592
+github.com/mertovun/event-driven-notification-system/internal/provider.(*HTTPClient).Send(0x7d46ee79b260, {0xdca270, 0x7d46f1f861e0}, {{0x7d490c644500, 0xd}, {0x7d490c6444f0, 0x3}, {0x7d490c6444f3, 0x7}}, {0x7d46f1df1ad0, ...})
+	github.com/mertovun/event-driven-notification-system/internal/provider/httpclient.go:184 +0x494
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:198 +0x5c
+github.com/sony/gobreaker.(*CircuitBreaker).Execute(0x7d46ee5173b0, 0x7d46f2a3f3b8)
+	github.com/sony/gobreaker@v1.0.0/gobreaker.go:242 +0x94
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xdc89f0, 0x7d46f2a906c0}, 0x7d46f1f86150, {0x7d490c644490, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:197 +0xad0
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xdc89f0, 0x7d46f2a906c0}, 0x7d46f1f86150, {0x7d490c644490, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:97 +0x118
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee6fc900, {0xdca2a8, 0x7d46ee634820}, 0x7d46f2a3ff20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:104 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 157 [select]:
+net/http.(*http2ClientConn).roundTrip(0x7d46f30aa000, 0x7d46f1c38280, 0x0)
+	net/http/h2_bundle.go:8688 +0x408
+net/http.(*http2ClientConn).RoundTrip(...)
+	net/http/h2_bundle.go:8603
+net/http.(*http2Transport).RoundTripOpt(0x7d46f2f261e0, 0x7d46f1c38280, {0x80?, 0x82?})
+	net/http/h2_bundle.go:7901 +0x20c
+net/http.(*http2Transport).RoundTrip(...)
+	net/http/h2_bundle.go:7852
+net/http.http2noDialH2RoundTripper.RoundTrip({0x7d46ee4ce000?}, 0x7d46f1c38280?)
+	net/http/h2_bundle.go:10560 +0x28
+net/http.(*Transport).roundTrip(0x7d46ee4ce000, 0x7d46f1c38140)
+	net/http/transport.go:623 +0x3ec
+net/http.(*Transport).RoundTrip(0x7d46f1c38140?, 0xdbcb40?)
+	net/http/roundtrip.go:33 +0x20
+net/http.send(0x7d46f1c38000, {0xdbcb40, 0x7d46ee4ce000}, {0xd14720?, 0xd0feacb62eb7?, 0x181ec20?})
+	net/http/client.go:264 +0x4a0
+net/http.(*Client).send(0x7d46ee79b290, 0x7d46f1c38000, {0x7d46f2ab87e8?, 0x9495c?, 0x181ec20?})
+	net/http/client.go:185 +0x1e4
+net/http.(*Client).do(0x7d46ee79b290, 0x7d46f1c38000)
+	net/http/client.go:733 +0x710
+net/http.(*Client).Do(...)
+	net/http/client.go:592
+github.com/mertovun/event-driven-notification-system/internal/provider.(*HTTPClient).Send(0x7d46ee79b260, {0xdca270, 0x7d46f1c363f0}, {{0x7d490c32af90, 0xd}, {0x7d490c32af80, 0x3}, {0x7d490c32af83, 0x7}}, {0x7d46f1c28e10, ...})
+	github.com/mertovun/event-driven-notification-system/internal/provider/httpclient.go:184 +0x494
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:198 +0x5c
+github.com/sony/gobreaker.(*CircuitBreaker).Execute(0x7d46ee5173b0, 0x7d46f2ab93b8)
+	github.com/sony/gobreaker@v1.0.0/gobreaker.go:242 +0x94
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xdc89f0, 0x7d46ee46cb40}, 0x7d46f1c36360, {0x7d490c32af20, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:197 +0xad0
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xdc89f0, 0x7d46ee46cb40}, 0x7d46f1c36360, {0x7d490c32af20, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:97 +0x118
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46f2c24180, {0xdca2a8, 0x7d46ee634820}, 0x7d46f2ab9f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:104 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 158 [select]:
+net/http.(*http2ClientConn).roundTrip(0x7d46f30aa000, 0x7d46f1db3040, 0x0)
+	net/http/h2_bundle.go:8688 +0x408
+net/http.(*http2ClientConn).RoundTrip(...)
+	net/http/h2_bundle.go:8603
+net/http.(*http2Transport).RoundTripOpt(0x7d46f2f261e0, 0x7d46f1db3040, {0x40?, 0x30?})
+	net/http/h2_bundle.go:7901 +0x20c
+net/http.(*http2Transport).RoundTrip(...)
+	net/http/h2_bundle.go:7852
+net/http.http2noDialH2RoundTripper.RoundTrip({0x7d46ee4ce000?}, 0x7d46f1db3040?)
+	net/http/h2_bundle.go:10560 +0x28
+net/http.(*Transport).roundTrip(0x7d46ee4ce000, 0x7d46f1db2f00)
+	net/http/transport.go:623 +0x3ec
+net/http.(*Transport).RoundTrip(0x7d46f1db2f00?, 0xdbcb40?)
+	net/http/roundtrip.go:33 +0x20
+net/http.send(0x7d46f1db2dc0, {0xdbcb40, 0x7d46ee4ce000}, {0xd14720?, 0xd0fed5747063?, 0x181ec20?})
+	net/http/client.go:264 +0x4a0
+net/http.(*Client).send(0x7d46ee79b290, 0x7d46f1db2dc0, {0x7d46f2b627e8?, 0x9495c?, 0x181ec20?})
+	net/http/client.go:185 +0x1e4
+net/http.(*Client).do(0x7d46ee79b290, 0x7d46f1db2dc0)
+	net/http/client.go:733 +0x710
+net/http.(*Client).Do(...)
+	net/http/client.go:592
+github.com/mertovun/event-driven-notification-system/internal/provider.(*HTTPClient).Send(0x7d46ee79b260, {0xdca270, 0x7d46f1daf710}, {{0x7d490c59eea0, 0xd}, {0x7d490c59ee90, 0x3}, {0x7d490c59ee93, 0x7}}, {0x7d46f1db5500, ...})
+	github.com/mertovun/event-driven-notification-system/internal/provider/httpclient.go:184 +0x494
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:198 +0x5c
+github.com/sony/gobreaker.(*CircuitBreaker).Execute(0x7d46ee5173b0, 0x7d46f2b633b8)
+	github.com/sony/gobreaker@v1.0.0/gobreaker.go:242 +0x94
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xdc89f0, 0x7d46ee35b8c0}, 0x7d46f1daf680, {0x7d490c59ee30, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:197 +0xad0
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xdc89f0, 0x7d46ee35b8c0}, 0x7d46f1daf680, {0x7d490c59ee30, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:97 +0x118
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46f2c24080, {0xdca2a8, 0x7d46ee634820}, 0x7d46f2b63f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:104 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 159 [select]:
+net/http.(*http2ClientConn).roundTrip(0x7d46f30aa000, 0x7d46f0be2000, 0x0)
+	net/http/h2_bundle.go:8688 +0x408
+net/http.(*http2ClientConn).RoundTrip(...)
+	net/http/h2_bundle.go:8603
+net/http.(*http2Transport).RoundTripOpt(0x7d46f2f261e0, 0x7d46f0be2000, {0x0?, 0x20?})
+	net/http/h2_bundle.go:7901 +0x20c
+net/http.(*http2Transport).RoundTrip(...)
+	net/http/h2_bundle.go:7852
+net/http.http2noDialH2RoundTripper.RoundTrip({0x7d46ee4ce000?}, 0x7d46f0be2000?)
+	net/http/h2_bundle.go:10560 +0x28
+net/http.(*Transport).roundTrip(0x7d46ee4ce000, 0x7d46f0bc3cc0)
+	net/http/transport.go:623 +0x3ec
+net/http.(*Transport).RoundTrip(0x7d46f0bc3cc0?, 0xdbcb40?)
+	net/http/roundtrip.go:33 +0x20
+net/http.send(0x7d46f0bc3b80, {0xdbcb40, 0x7d46ee4ce000}, {0xd14720?, 0xd0feee3a6bea?, 0x181ec20?})
+	net/http/client.go:264 +0x4a0
+net/http.(*Client).send(0x7d46ee79b290, 0x7d46f0bc3b80, {0x7d46f2d0e7e8?, 0x9495c?, 0x181ec20?})
+	net/http/client.go:185 +0x1e4
+net/http.(*Client).do(0x7d46ee79b290, 0x7d46f0bc3b80)
+	net/http/client.go:733 +0x710
+net/http.(*Client).Do(...)
+	net/http/client.go:592
+github.com/mertovun/event-driven-notification-system/internal/provider.(*HTTPClient).Send(0x7d46ee79b260, {0xdca270, 0x7d46f1ec42d0}, {{0x7d490c7069c0, 0xd}, {0x7d490c7069b0, 0x3}, {0x7d490c7069b3, 0x7}}, {0x7d46f1ebc660, ...})
+	github.com/mertovun/event-driven-notification-system/internal/provider/httpclient.go:184 +0x494
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:198 +0x5c
+github.com/sony/gobreaker.(*CircuitBreaker).Execute(0x7d46ee5173b0, 0x7d46f2d0f3b8)
+	github.com/sony/gobreaker@v1.0.0/gobreaker.go:242 +0x94
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xdc89f0, 0x7d46ee8ca000}, 0x7d46f1ec4240, {0x7d490c706950, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:197 +0xad0
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xdc89f0, 0x7d46ee8ca000}, 0x7d46f1ec4240, {0x7d490c706950, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:97 +0x118
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46f2b80140, {0xdca2a8, 0x7d46ee634820}, 0x7d46f2d0ff20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:104 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 160 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee8a42c0, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee47df20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 161 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46f2992180, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee4f1f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 162 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee444500, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee81df20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 163 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee6fc880, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee819f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 164 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46f2c24100, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee4edf20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 165 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46f2b80240, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee81bf20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 166 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee6fc980, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee629f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 167 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee7d2300, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee627f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 168 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46f2b801c0, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee82bf20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 169 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee444580, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee82df20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 170 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee8a4340, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee81ff20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 171 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee8a43c0, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee685f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 172 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee6fc7c0, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee831f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 173 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46f2b3c200, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee82ff20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 174 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee6fcac0, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee687f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 175 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x7d46ee7a07c0, {0xdca2a8, 0x7d46ee634820}, 0x7d46ee35ff20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:94 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func1()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:110 +0x248
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 148
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 193 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58126c00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee57c000?, 0x7d46ee697000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee57c000, {0x7d46ee697000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee57c000, {0x7d46ee697000?, 0x0?, 0x0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee33a070, {0x7d46ee697000?, 0x7d46eecec008?, 0x7d490c59ee80?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee7c0000, {0x7d490c59ee80, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee7c0000}, {0x7d490c59ee80, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46eee33f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee466000, {0xdbd9c0, 0x7d46ee33a070?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 158
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 194 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58064a00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee572000?, 0x7d46ee699000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee572000, {0x7d46ee699000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee572000, {0x7d46ee699000?, 0x0?, 0x0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee33a120, {0x7d46ee699000?, 0x7d46ee400808?, 0x7d490c32af70?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee7c0060, {0x7d490c32af70, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee7c0060}, {0x7d490c32af70, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46f2dc1f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee4662c0, {0xdbd9c0, 0x7d46ee33a120?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 157
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 50 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58126400, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee57c100?, 0x7d46ee982000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee57c100, {0x7d46ee982000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee57c100, {0x7d46ee982000?, 0x0?, 0x0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee882058, {0x7d46ee982000?, 0x7d46eecec008?, 0x7d490c7069a0?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee980000, {0x7d490c7069a0, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee980000}, {0x7d490c7069a0, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46f36d0f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee5ee000, {0xdbd9c0, 0x7d46ee882058?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 159
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 115 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58126600, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee4dc000?, 0x7d46ee633000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee4dc000, {0x7d46ee633000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee4dc000, {0x7d46ee633000?, 0xbafbe0?, 0x7d46ee594960?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee4022f0, {0x7d46ee633000?, 0x7d46ee400808?, 0x7d49058a1210?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee58e0c0, {0x7d49058a1210, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee58e0c0}, {0x7d49058a1210, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee5abf18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee638000, {0xdbd9c0, 0x7d46ee4022f0?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 162
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 116 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58126a00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee57c080?, 0x7d46ee643000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee57c080, {0x7d46ee643000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee57c080, {0x7d46ee643000?, 0xbafbe0?, 0x7d46ee594b40?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee402300, {0x7d46ee643000?, 0x7d46ee802008?, 0x7d49058a1200?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee58e120, {0x7d49058a1200, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee58e120}, {0x7d49058a1200, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee68ff18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee638160, {0xdbd9c0, 0x7d46ee402300?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 167
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 138 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58064400, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee7b0680?, 0x7d46ee837000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee7b0680, {0x7d46ee837000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee7b0680, {0x7d46ee837000?, 0xbafbe0?, 0x7d46ee594d20?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee9200b0, {0x7d46ee837000?, 0x7d46ee401008?, 0x7d49058a1260?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee65e2a0, {0x7d49058a1260, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee65e2a0}, {0x7d49058a1260, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee482f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee644160, {0xdbd9c0, 0x7d46ee9200b0?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 170
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 89 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58166000, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee7b0480?, 0x7d46ee537000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee7b0480, {0x7d46ee537000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee7b0480, {0x7d46ee537000?, 0xbafbe0?, 0x7d46ee505680?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee606050, {0x7d46ee537000?, 0x7d46f2a89f80?, 0x7d49058a1050?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee3f6180, {0x7d49058a1052, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee3f6180}, {0x7d49058a1052, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46f2a89f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee3782c0, {0xdbd9c0, 0x7d46ee606050?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 165
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 112 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58064600, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee57c280?, 0x7d46ee7f3000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee57c280, {0x7d46ee7f3000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee57c280, {0x7d46ee7f3000?, 0xbafbe0?, 0x7d46ee7fa000?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee7ce010, {0x7d46ee7f3000?, 0x7d46ee593008?, 0x7d49058a1220?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee7ea060, {0x7d49058a1220, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee7ea060}, {0x7d49058a1220, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46f2b13f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee7e2160, {0xdbd9c0, 0x7d46ee7ce010?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 171
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 90 [IO wait]:
+internal/poll.runtime_pollWait(0xffff57dfea00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee572100?, 0x7d46ee905000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee572100, {0x7d46ee905000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee572100, {0x7d46ee905000?, 0xbafbe0?, 0x7d46ee90a000?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee606068, {0x7d46ee905000?, 0x7d46ee401008?, 0x7d49058a1240?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee3f61e0, {0x7d49058a1240, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee3f61e0}, {0x7d49058a1240, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee483f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee378420, {0xdbd9c0, 0x7d46ee606068?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 166
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 209 [IO wait]:
+internal/poll.runtime_pollWait(0xffff57dfe400, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee4dc280?, 0x7d46ee7fd000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee4dc280, {0x7d46ee7fd000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee4dc280, {0x7d46ee7fd000?, 0x5?, 0xffff9ed8c718?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee7ce020, {0x7d46ee7fd000?, 0x7d46ee400808?, 0x7d490c6887f0?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee7ea0c0, {0x7d490c6887f0, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee7ea0c0}, {0x7d490c6887f0, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee62df18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee7e22c0, {0xdbd9c0, 0x7d46ee7ce020?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 154
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 225 [IO wait]:
+internal/poll.runtime_pollWait(0xffff57dfe800, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee57c880?, 0x7d46ee910000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee57c880, {0x7d46ee910000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee57c880, {0x7d46ee910000?, 0xbafbe0?, 0x7d46ee726000?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee71e000, {0x7d46ee910000?, 0x7d46ee401008?, 0x7d49058a1250?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee3f6240, {0x7d49058a1250, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee3f6240}, {0x7d49058a1250, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46f2b97f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee724000, {0xdbd9c0, 0x7d46ee71e000?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 174
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 241 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58064800, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee4dc100?, 0x7d46ee7fe000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee4dc100, {0x7d46ee7fe000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee4dc100, {0x7d46ee7fe000?, 0xbafbe0?, 0x7d46ee8b6000?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee89c000, {0x7d46ee7fe000?, 0x7d46ee68ef80?, 0x7d49058a11f0?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee7ea120, {0x7d49058a11f2, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee7ea120}, {0x7d49058a11f2, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee68ef18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee8b2000, {0xdbd9c0, 0x7d46ee89c000?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 164
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 257 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58065000, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee4dc080?, 0x7d46f2991000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee4dc080, {0x7d46f2991000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee4dc080, {0x7d46f2991000?, 0xbafbe0?, 0x7d46f299a000?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46f298c000, {0x7d46f2991000?, 0x7d46ee802008?, 0x7d49057b6360?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46f299e000, {0x7d49057b6360, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46f299e000}, {0x7d49057b6360, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee5acf18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46f2996000, {0xdbd9c0, 0x7d46f298c000?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 175
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 91 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58064c00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee57c200?, 0x7d46ee912000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee57c200, {0x7d46ee912000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee57c200, {0x7d46ee912000?, 0xbafbe0?, 0x7d46ee90a1e0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee606078, {0x7d46ee912000?, 0x7d46ee802008?, 0x7d49057b6350?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee3f62a0, {0x7d49057b6350, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee3f62a0}, {0x7d49057b6350, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46f2b17f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee378580, {0xdbd9c0, 0x7d46ee606078?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 173
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 258 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58064e00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee7b0600?, 0x7d46f29a1000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee7b0600, {0x7d46f29a1000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee7b0600, {0x7d46f29a1000?, 0x0?, 0x0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46f298c010, {0x7d46f29a1000?, 0x7d46ee802008?, 0x7d490c6444e0?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46f299e060, {0x7d490c6444e0, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46f299e060}, {0x7d490c6444e0, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee477f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46f2996160, {0xdbd9c0, 0x7d46f298c010?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 156
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 141 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58064200, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee572080?, 0x7d46ee84f000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee572080, {0x7d46ee84f000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee572080, {0x7d46ee84f000?, 0xbafbe0?, 0x7d46ee7332c0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee9200f0, {0x7d46ee84f000?, 0x7d46ee401008?, 0x7d49058a1270?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee65e3c0, {0x7d49058a1270, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee65e3c0}, {0x7d49058a1270, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46f2b14f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee644580, {0xdbd9c0, 0x7d46ee9200f0?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 160
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 210 [IO wait]:
+internal/poll.runtime_pollWait(0xffff57dfec00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee7b0700?, 0x7d46ee850000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee7b0700, {0x7d46ee850000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee7b0700, {0x7d46ee850000?, 0x0?, 0x0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee7ce030, {0x7d46ee850000?, 0x7d46ee401008?, 0x7d490a7b50e0?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee65e420, {0x7d490a7b50e0, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee65e420}, {0x7d490a7b50e0, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46eeb91f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee7e2420, {0xdbd9c0, 0x7d46ee7ce030?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 155
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 273 [IO wait]:
+internal/poll.runtime_pollWait(0xffff57dfee00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee4dc180?, 0x7d46f2a80000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee4dc180, {0x7d46f2a80000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee4dc180, {0x7d46f2a80000?, 0x0?, 0x0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46f2a04000, {0x7d46f2a80000?, 0x7d46ee593008?, 0x7d490c443430?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee7ea180, {0x7d490c443430, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee7ea180}, {0x7d490c443430, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46eee39f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46f2a0e000, {0xdbd9c0, 0x7d46f2a04000?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 152
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 226 [select]:
+github.com/redis/go-redis/v9.(*channel).initHealthCheck.func1()
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:691 +0xb4
+created by github.com/redis/go-redis/v9.(*channel).initHealthCheck in goroutine 149
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:685 +0xa4
+
+goroutine 227 [IO wait]:
+internal/poll.runtime_pollWait(0xffff58166800, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee602200?, 0x7d46ee660000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee602200, {0x7d46ee660000, 0x8000, 0x8000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee602200, {0x7d46ee660000?, 0x7d46ee58e060?, 0x24?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee4022d8, {0x7d46ee660000?, 0x7d46ee66002d?, 0x33ca8?})
+	net/net.go:196 +0x34
+bufio.(*Reader).fill(0x7d46ee58e060)
+	bufio/bufio.go:113 +0xe0
+bufio.(*Reader).Peek(0x7d46ee58e060, 0x1)
+	bufio/bufio.go:152 +0x58
+github.com/redis/go-redis/v9/internal/proto.(*Reader).PeekReplyType(0x7d46ee4022e0)
+	github.com/redis/go-redis/v9@v9.19.0/internal/proto/reader.go:90 +0x28
+github.com/redis/go-redis/v9/push.(*Processor).ProcessPendingNotifications(0x7d46ee882008, {0xdca350, 0x1846f00}, {{0x0, 0x0}, {0x0, 0x0}, {0xd12720, 0x7d46ee5177a0}, {0xd259e0, ...}, ...}, ...)
+	github.com/redis/go-redis/v9@v9.19.0/push/processor.go:61 +0x70
+github.com/redis/go-redis/v9.(*PubSub).processPendingPushNotificationWithReader(0x72?, {0xdca350?, 0x1846f00?}, 0x0?, 0x0?)
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:607 +0xd0
+github.com/redis/go-redis/v9.(*PubSub).ReceiveTimeout.func1(0x7d46ee4022e0)
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:493 +0x44
+github.com/redis/go-redis/v9/internal/pool.(*Conn).WithReader(0x7d46ee67e400?, {0xdca350?, 0x1846f00?}, 0xd10ceade3264?, 0x7d46ee68bee0?)
+	github.com/redis/go-redis/v9@v9.19.0/internal/pool/conn.go:889 +0x100
+github.com/redis/go-redis/v9.(*PubSub).ReceiveTimeout(0x7d46ee5177a0, {0xdca350, 0x1846f00}, 0x0)
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:491 +0xe8
+github.com/redis/go-redis/v9.(*PubSub).Receive(...)
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:519
+github.com/redis/go-redis/v9.(*channel).initMsgChan.func1()
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:720 +0x78
+created by github.com/redis/go-redis/v9.(*channel).initMsgChan in goroutine 149
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:714 +0xa8
+
+goroutine 195 [IO wait]:
+internal/poll.runtime_pollWait(0xffff57dfe200, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46ee572180?, 0x7d46f2a81000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46ee572180, {0x7d46f2a81000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46ee572180, {0x7d46f2a81000?, 0xbafbe0?, 0x7d46ee6a23c0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee33a140, {0x7d46f2a81000?, 0x7d46ee593008?, 0x7d49058a1230?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x7d46ee7ea1e0, {0x7d49058a1230, 0x7, 0x9ec868?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46ee7ea1e0}, {0x7d49058a1230, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x7d46ee5b1f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x7d46ee466420, {0xdbd9c0, 0x7d46ee33a140?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 169
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 211 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee466000, 0x37e11d600, 0x7d46ee5223f0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 158
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 182 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee3782c0, 0x37e11d600, 0x7d46ee64b3b0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 165
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 196 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee638160, 0x37e11d600, 0x7d46ee58ca80)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 167
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 197 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee7e2000, 0x37e11d600, 0x7d46ee58cbd0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 163
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 183 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee638000, 0x37e11d600, 0x7d46ee64b9d0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 162
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 184 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee5ee000, 0x37e11d600, 0x7d46ee64bd50)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 159
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 242 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee638420, 0x37e11d600, 0x7d46ee542770)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 161
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 198 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46f2996000, 0x37e11d600, 0x7d46ee58cd20)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 175
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 228 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee6382c0, 0x37e11d600, 0x7d46ee38c700)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 168
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 185 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46f2996160, 0x37e11d600, 0x7d46ee55a230)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 156
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 229 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee8b2000, 0x37e11d600, 0x7d46ee38c850)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 164
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 230 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee378580, 0x37e11d600, 0x7d46ee38c930)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 173
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 231 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee4662c0, 0x37e11d600, 0x7d46ee38cb60)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 157
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 243 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee7e2160, 0x37e11d600, 0x7d46ee542c40)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 171
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 232 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee644160, 0x37e11d600, 0x7d46ee38d0a0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 170
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 289 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee644420, 0x37e11d600, 0x7d46ee560070)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 172
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 259 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee7e2420, 0x37e11d600, 0x7d46ee54c700)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 155
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 244 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46f2a0e000, 0x37e11d600, 0x7d46ee542fc0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 152
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 212 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee7e22c0, 0x37e11d600, 0x7d46ee5227e0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 154
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 245 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee378420, 0x37e11d600, 0x7d46ee543340)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 166
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 186 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee724000, 0x37e11d600, 0x7d46ee55a930)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 174
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 260 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee6442c0, 0x37e11d600, 0x7d46ee54cee0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 153
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 261 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x7d46ee466420, 0x37e11d600, 0x7d46ee54d3b0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 169
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 262 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee770120, 0x7d46f2994af0, 0x7d46f2994a80)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 161
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 213 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee6d4660, 0x7d46ee7d4af0, 0x7d46ee7d4a80)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 167
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 246 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 158
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 305 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee898180, 0x7d46f2b90690, 0x7d46f2b90620)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 159
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 121 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee45c540, 0x7d46ee7ab260, 0x7d46ee7ab1f0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 163
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 122 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee43c7e0, 0x7d46ee7ab340, 0x7d46ee7ab2d0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 156
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 199 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 172
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 290 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46f2a020f0, 0x7d46f2b4a9a0, 0x7d46f2b4a930)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 173
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 142 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee770210, 0x7d46ee917110, 0x7d46ee9170a0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 175
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 187 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 164
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 306 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 163
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 307 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee770360, 0x7d46f2b90770, 0x7d46f2b90700)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 168
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 233 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 173
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 274 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 175
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 234 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46f2c08030, 0x7d46ee722c40, 0x7d46ee722bd0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 152
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 308 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee6d4570, 0x7d46f2b90850, 0x7d46f2b907e0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 165
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 235 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 156
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 291 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 157
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 247 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46f2b24300, 0x7d46ee8b0c40, 0x7d46ee8b0bd0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 160
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 200 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee45c8a0, 0x7d46ee3fb1f0, 0x7d46ee3fb180)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 162
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 188 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46f2b24450, 0x7d46ee649500, 0x7d46ee649490)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 155
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 189 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 152
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 275 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 165
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 276 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 162
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 248 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46f298a570, 0x7d46ee8b0d20, 0x7d46ee8b0cb0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 170
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 249 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46f298a480, 0x7d46ee8b0e00, 0x7d46ee8b0d90)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 171
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 277 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 160
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 263 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 170
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 264 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46f2b24720, 0x7d46f2994bd0, 0x7d46f2994b60)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 154
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 123 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46f2b248d0, 0x7d46ee7ab420, 0x7d46ee7ab3b0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 166
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 92 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 155
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 143 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 171
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 144 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 166
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 250 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 154
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 265 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 169
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 219 [IO wait]:
+internal/poll.runtime_pollWait(0xffff57dc2400, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x7d46f29c2200?, 0x7d46f3180000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x7d46f29c2200, {0x7d46f3180000, 0x1300, 0x1300})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x7d46f29c2200, {0x7d46f3180000?, 0x7d46ee8298d8?, 0x30b18?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46ee9201b0, {0x7d46f3180000?, 0x3007e5a40?, 0xffff57ed1488?})
+	net/net.go:196 +0x34
+crypto/tls.(*atLeastReader).Read(0x7d46f0bd30b0, {0x7d46f3180000?, 0x7d46ee829998?, 0x22e444?})
+	crypto/tls/conn.go:815 +0x38
+bytes.(*Buffer).ReadFrom(0x7d46ee7e5b28, {0xdbd840, 0x7d46f0bd30b0})
+	bytes/buffer.go:229 +0x90
+crypto/tls.(*Conn).readFromUntil(0x7d46ee7e5888, {0xdbd9c0, 0x7d46ee9201b0}, 0xffd?)
+	crypto/tls/conn.go:837 +0xcc
+crypto/tls.(*Conn).readRecordOrCCS(0x7d46ee7e5888, 0x0)
+	crypto/tls/conn.go:626 +0x338
+crypto/tls.(*Conn).readRecord(...)
+	crypto/tls/conn.go:588
+crypto/tls.(*Conn).Read(0x7d46ee7e5888, {0x7d46f30ad000, 0x1000, 0x7d4600000000?})
+	crypto/tls/conn.go:1393 +0x14c
+bufio.(*Reader).Read(0x7d46f309aa20, {0x7d46f2aa6204, 0x9, 0x2ca8b4?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdbc840, 0x7d46f309aa20}, {0x7d46f2aa6204, 0x9, 0x9}, 0x9)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+net/http.http2readFrameHeader({0x7d46f2aa6204, 0x9, 0x7d4600000ba7?}, {0xdbc840?, 0x7d46f309aa20?})
+	net/http/h2_bundle.go:1805 +0x58
+net/http.(*http2Framer).ReadFrameHeader(0x7d46f2aa61c0)
+	net/http/h2_bundle.go:2071 +0x60
+net/http.(*http2Framer).ReadFrame(0x7d46f2aa61c0)
+	net/http/h2_bundle.go:2130 +0x20
+net/http.(*http2clientConnReadLoop).run(0x7d46ee829f98)
+	net/http/h2_bundle.go:9550 +0xb8
+net/http.(*http2ClientConn).readLoop(0x7d46f30aa000)
+	net/http/h2_bundle.go:9419 +0x4c
+created by net/http.(*http2Transport).newClientConn in goroutine 218
+	net/http/h2_bundle.go:8171 +0xa6c
+
+goroutine 201 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46f2a021e0, 0x7d46ee3fb2d0, 0x7d46ee3fb260)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 169
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 124 [chan receive, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee45d0e0, 0x7d46ee7ab5e0, 0x7d46ee7ab570)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 174
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 321 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 174
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 251 [select, 1 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 153
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 337 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x7d46ee898cc0, 0x7d46ee7ab7a0, 0x7d46ee7ab730)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 153
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 102699 [select]:
+net/http.(*http2clientStream).writeRequest(0x7d46f11f5380, 0x7d46f1f88500, 0x0)
+	net/http/h2_bundle.go:8857 +0x998
+net/http.(*http2clientStream).doRequest(0x7d46f11f5380, 0x9ecc4?, 0x7d46f5a92ec0?)
+	net/http/h2_bundle.go:8718 +0x20
+created by net/http.(*http2ClientConn).roundTrip in goroutine 156
+	net/http/h2_bundle.go:8624 +0x394
+
+goroutine 102682 [select]:
+net/http.(*http2clientStream).writeRequest(0x7d46f1139680, 0x7d46f1cd9680, 0x0)
+	net/http/h2_bundle.go:8857 +0x998
+net/http.(*http2clientStream).doRequest(0x7d46f1139680, 0xdca270?, 0x7d46ee621e00?)
+	net/http/h2_bundle.go:8718 +0x20
+created by net/http.(*http2ClientConn).roundTrip in goroutine 154
+	net/http/h2_bundle.go:8624 +0x394
+
+goroutine 102567 [select]:
+net/http.(*http2clientStream).writeRequest(0x7d46f2c49c80, 0x7d46f0bc3900, 0x0)
+	net/http/h2_bundle.go:8857 +0x998
+net/http.(*http2clientStream).doRequest(0x7d46f2c49c80, 0x9ecc4?, 0x7d46f4bb41c0?)
+	net/http/h2_bundle.go:8718 +0x20
+created by net/http.(*http2ClientConn).roundTrip in goroutine 153
+	net/http/h2_bundle.go:8624 +0x394
+
+goroutine 102568 [select]:
+net/http.(*http2clientStream).writeRequest(0x7d46f0be4000, 0x7d46f0be2000, 0x0)
+	net/http/h2_bundle.go:8857 +0x998
+net/http.(*http2clientStream).doRequest(0x7d46f0be4000, 0x9ecc4?, 0x7d46f0b5c5b0?)
+	net/http/h2_bundle.go:8718 +0x20
+created by net/http.(*http2ClientConn).roundTrip in goroutine 159
+	net/http/h2_bundle.go:8624 +0x394
+
+goroutine 102724 [select]:
+net/http.(*http2clientStream).writeRequest(0x7d46f1405680, 0x7d46f1e3c140, 0x0)
+	net/http/h2_bundle.go:8857 +0x998
+net/http.(*http2clientStream).doRequest(0x7d46f1405680, 0x9ecc4?, 0x7d46f4f699c0?)
+	net/http/h2_bundle.go:8718 +0x20
+created by net/http.(*http2ClientConn).roundTrip in goroutine 155
+	net/http/h2_bundle.go:8624 +0x394
+
+goroutine 102728 [runnable]:
+syscall.Syscall(0x3f, 0x2d, 0x7d46f2ed07e1, 0x1)
+	syscall/syscall_linux.go:74 +0x20
+syscall.read(0x7d46ee8c7c80?, {0x7d46f2ed07e1?, 0x7d46f55bfe00?, 0x2846c?})
+	syscall/zsyscall_linux_arm64.go:736 +0x40
+syscall.Read(...)
+	syscall/syscall_unix.go:183
+internal/poll.ignoringEINTRIO(...)
+	internal/poll/fd_unix.go:738
+internal/poll.(*FD).Read(0x7d46ee8c7c80, {0x7d46f2ed07e1, 0x1, 0x1})
+	internal/poll/fd_unix.go:161 +0x1a0
+net.(*netFD).Read(0x7d46ee8c7c80, {0x7d46f2ed07e1?, 0x7d46f55bff58?, 0x7d46efe1b654?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x7d46f1d5e7e8, {0x7d46f2ed07e1?, 0x7d46f1405680?, 0x7d46f1e3c140?})
+	net/net.go:196 +0x34
+net/http.(*connReader).backgroundRead(0x7d46f2ed07c0)
+	net/http/server.go:702 +0x38
+created by net/http.(*connReader).startBackgroundRead in goroutine 102727
+	net/http/server.go:698 +0xb8
+
+goroutine 102668 [select]:
+net/http.(*http2clientStream).writeRequest(0x7d46f49ebb00, 0x7d46f1c38280, 0x0)
+	net/http/h2_bundle.go:8857 +0x998
+net/http.(*http2clientStream).doRequest(0x7d46f49ebb00, 0xdca270?, 0x7d46ee621e00?)
+	net/http/h2_bundle.go:8718 +0x20
+created by net/http.(*http2ClientConn).roundTrip in goroutine 157
+	net/http/h2_bundle.go:8624 +0x394
+
+goroutine 102697 [select]:
+net/http.(*http2clientStream).writeRequest(0x7d46f11f5200, 0x7d46f1db3040, 0x0)
+	net/http/h2_bundle.go:8857 +0x998
+net/http.(*http2clientStream).doRequest(0x7d46f11f5200, 0x9ecc4?, 0x7d46f1ab0150?)
+	net/http/h2_bundle.go:8718 +0x20
+created by net/http.(*http2ClientConn).roundTrip in goroutine 158
+	net/http/h2_bundle.go:8624 +0x394
+
+goroutine 102708 [select]:
+net/http.(*http2clientStream).writeRequest(0x7d46f1c48300, 0x7d46f1c78280, 0x0)
+	net/http/h2_bundle.go:8857 +0x998
+net/http.(*http2clientStream).doRequest(0x7d46f1c48300, 0x9ecc4?, 0x7d46f1c53a40?)
+	net/http/h2_bundle.go:8718 +0x20
+created by net/http.(*http2ClientConn).roundTrip in goroutine 152
+	net/http/h2_bundle.go:8624 +0x394
