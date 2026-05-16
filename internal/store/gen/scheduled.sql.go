@@ -15,9 +15,13 @@ import (
 const claimDueScheduled = `-- name: ClaimDueScheduled :many
 WITH claimed AS (
     SELECT id FROM scheduled_notifications
-    WHERE due_at <= now() AND claimed_at IS NULL
+    WHERE due_at <= now()
+      AND (
+            claimed_at IS NULL
+         OR claimed_at < now() - ($2::int || ' seconds')::interval
+          )
     ORDER BY due_at
-    LIMIT $2::int
+    LIMIT $3::int
     FOR UPDATE SKIP LOCKED
 )
 UPDATE scheduled_notifications
@@ -28,12 +32,17 @@ RETURNING id, due_at, claimed_at, claimed_by
 
 type ClaimDueScheduledParams struct {
 	ClaimedBy *string `json:"claimed_by"`
+	ClaimTtl  int32   `json:"claim_ttl"`
 	BatchSize int32   `json:"batch_size"`
 }
 
-// Scheduler poller: claim due, unclaimed rows.
+// Scheduler poller: claim due rows whose claim is either fresh OR has aged
+// out (claim_ttl exceeded — original dispatcher crashed mid-transaction
+// before deleting the row). Without TTL reclamation a crashed scheduler
+// would permanently strand its claimed rows. Mirrors the outbox dispatcher's
+// claim-TTL pattern (see outbox.sql).
 func (q *Queries) ClaimDueScheduled(ctx context.Context, arg ClaimDueScheduledParams) ([]ScheduledNotification, error) {
-	rows, err := q.db.Query(ctx, claimDueScheduled, arg.ClaimedBy, arg.BatchSize)
+	rows, err := q.db.Query(ctx, claimDueScheduled, arg.ClaimedBy, arg.ClaimTtl, arg.BatchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +94,42 @@ func (q *Queries) InsertScheduled(ctx context.Context, arg InsertScheduledParams
 		&i.DueAt,
 		&i.ClaimedAt,
 		&i.ClaimedBy,
+	)
+	return i, err
+}
+
+const markScheduledPending = `-- name: MarkScheduledPending :one
+UPDATE notifications
+SET status = 'pending', updated_at = now()
+WHERE id = $1 AND status = 'scheduled'
+RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by
+`
+
+// Scheduler transition: scheduled → pending. CAS-style so a row that was
+// cancelled in the meantime (or already transitioned) is left untouched
+// and the caller can detect the no-op via 0 rows.
+func (q *Queries) MarkScheduledPending(ctx context.Context, id uuid.UUID) (Notification, error) {
+	row := q.db.QueryRow(ctx, markScheduledPending, id)
+	var i Notification
+	err := row.Scan(
+		&i.ID,
+		&i.BatchID,
+		&i.Channel,
+		&i.Recipient,
+		&i.Content,
+		&i.Priority,
+		&i.Status,
+		&i.IdempotencyKey,
+		&i.AttemptCount,
+		&i.LastError,
+		&i.ScheduledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SentAt,
+		&i.CorrelationID,
+		&i.TemplateID,
+		&i.TemplateVersion,
+		&i.CreatedBy,
 	)
 	return i, err
 }

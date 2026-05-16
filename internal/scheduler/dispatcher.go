@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/mertovun/event-driven-notification-system/internal/queue"
@@ -23,6 +24,12 @@ type Config struct {
 	PollInterval time.Duration // default 1s
 	BatchSize    int           // default 50
 	SchedulerID  string        // identifies this process (UUIDv7 per boot)
+	// ClaimTTL — a row claimed by a scheduler that subsequently crashed mid-TX
+	// (before the row was deleted) becomes eligible for re-claim after this
+	// duration. Mirrors the outbox dispatcher's claim-TTL pattern. 60s matches
+	// outbox default; lower values reduce drift but raise the chance of two
+	// dispatchers picking up the same row briefly.
+	ClaimTTL time.Duration
 }
 
 func Default(schedulerID string) Config {
@@ -30,6 +37,7 @@ func Default(schedulerID string) Config {
 		PollInterval: time.Second,
 		BatchSize:    50,
 		SchedulerID:  schedulerID,
+		ClaimTTL:     60 * time.Second,
 	}
 }
 
@@ -70,6 +78,7 @@ func (d *Dispatcher) tick(ctx context.Context) error {
 	rows, err := d.q.ClaimDueScheduled(ctx, gen.ClaimDueScheduledParams{
 		BatchSize: int32(d.cfg.BatchSize),
 		ClaimedBy: &sid,
+		ClaimTtl:  int32(d.cfg.ClaimTTL / time.Second),
 	})
 	if err != nil {
 		return fmt.Errorf("claim due scheduled: %w", err)
@@ -100,21 +109,18 @@ func (d *Dispatcher) dispatchOne(ctx context.Context, notifID uuid.UUID) {
 		return
 	}
 
-	// scheduled → queued via the existing MarkQueued query.
-	// MarkQueued only matches status='pending'; we need a dedicated transition.
-	// Use a raw UPDATE here.
-	res, err := tx.Exec(ctx, `
-		UPDATE notifications
-		   SET status = 'pending', updated_at = now()
-		 WHERE id = $1 AND status = 'scheduled'`, notifID)
-	if err != nil {
+	// scheduled → pending via the dedicated MarkScheduledPending query.
+	// Going through sqlc keeps DB access uniform and lets `go vet` /
+	// query review catch issues — earlier this was a raw `tx.Exec` because
+	// the bulk transitions didn't have a matching query.
+	if _, err := qtx.MarkScheduledPending(ctx, notifID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Lost the race (cancelled meanwhile); drop quietly.
+			_ = qtx.DeleteScheduled(ctx, notifID)
+			_ = tx.Commit(ctx)
+			return
+		}
 		d.logger.Error("scheduler CAS scheduled->pending", "id", notifID, "err", err)
-		return
-	}
-	if res.RowsAffected() == 0 {
-		// Lost the race (cancelled meanwhile); drop quietly.
-		_ = qtx.DeleteScheduled(ctx, notifID)
-		_ = tx.Commit(ctx)
 		return
 	}
 

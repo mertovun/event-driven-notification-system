@@ -19,7 +19,11 @@ type Querier interface {
 	// can only cancel their own rows.
 	CancelPendingOrQueued(ctx context.Context, id uuid.UUID) (Notification, error)
 	CancelPendingOrQueuedScoped(ctx context.Context, arg CancelPendingOrQueuedScopedParams) (Notification, error)
-	// Scheduler poller: claim due, unclaimed rows.
+	// Scheduler poller: claim due rows whose claim is either fresh OR has aged
+	// out (claim_ttl exceeded — original dispatcher crashed mid-transaction
+	// before deleting the row). Without TTL reclamation a crashed scheduler
+	// would permanently strand its claimed rows. Mirrors the outbox dispatcher's
+	// claim-TTL pattern (see outbox.sql).
 	ClaimDueScheduled(ctx context.Context, arg ClaimDueScheduledParams) ([]ScheduledNotification, error)
 	// Atomic claim with FOR UPDATE SKIP LOCKED. Reclaims rows whose previous
 	// claim has expired (claimed dispatcher died). Limit governs batch size.
@@ -64,6 +68,10 @@ type Querier interface {
 	MarkOutboxPublished(ctx context.Context, id uuid.UUID) error
 	// Outbox dispatcher transition: pending → queued after publish confirm.
 	MarkQueued(ctx context.Context, id uuid.UUID) (Notification, error)
+	// Scheduler transition: scheduled → pending. CAS-style so a row that was
+	// cancelled in the meantime (or already transitioned) is left untouched
+	// and the caller can detect the no-op via 0 rows.
+	MarkScheduledPending(ctx context.Context, id uuid.UUID) (Notification, error)
 	// Worker pickup: pending OR queued → sending.
 	// We accept both because the AMQP consumer can race the dispatcher's MarkQueued —
 	// the worker may receive a delivery while the row is still 'pending'.
