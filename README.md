@@ -63,8 +63,9 @@ curl http://localhost:8090/metrics | grep notifications_
                                   ▼                                    │
                               [Provider: webhook.site]                 │
                                                                        │
-                              [Scheduler dispatcher] (1Hz) ────────────┘
-                                  scheduled_notifications.due_at <= now()
+                              [Scheduler dispatcher] (off by default) ──┘
+                                  SCHEDULER_ENABLED=true to opt in;
+                                  see KNOWN_ISSUES.md for the pgx wedge
 
    Cross-cutting: slog JSON (PII-redacting), Prometheus /metrics, OpenTelemetry OTLP/gRPC
 ```
