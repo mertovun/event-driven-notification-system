@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/argon2"
 
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
@@ -111,10 +112,14 @@ func AuthedKeyFrom(ctx context.Context) (authedKey, bool) {
 // AuthMiddleware validates the Authorization: Bearer <key> header against api_keys.
 // Returns 401 on missing/invalid; attaches authedKey to context on success.
 //
-// The lookup is a two-step "narrow then verify":
-//  1. Read first `keyPrefixLen` chars → SELECT ... WHERE key_prefix = $1.
-//  2. For each candidate, argon2 verify; succeed on first match (constant-time per row).
-func AuthMiddleware(q *gen.Queries) func(http.Handler) http.Handler {
+// Verification path (in order):
+//  1. Cache check: GET auth:v1:<sha256(raw)> from Redis. On hit, attach and proceed. (~0.3ms)
+//  2. Cache miss: read first `keyPrefixLen` chars → SELECT ... WHERE key_prefix = $1.
+//  3. For each candidate, argon2id verify. On match, cache the result and attach. (~50ms)
+//
+// The cache (rdb) is optional. Passing nil falls back to the verify-every-time path,
+// which is the correct behaviour for tests that don't want a Redis dependency.
+func AuthMiddleware(q *gen.Queries, rdb *redis.Client) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			raw, ok := extractBearer(r)
@@ -128,8 +133,16 @@ func AuthMiddleware(q *gen.Queries) func(http.Handler) http.Handler {
 					"/problems/unauthorized", "Unauthorized", "key too short")
 				return
 			}
-			prefix := raw[:keyPrefixLen]
 
+			// Fast path: Redis cache of recently verified bearers.
+			if hit, _ := lookupAuthCache(r.Context(), rdb, raw); hit != nil {
+				ctx := context.WithValue(r.Context(), ctxKeyAuthedKey, *hit)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+
+			// Slow path: prefix-narrowed candidate lookup + argon2id verify.
+			prefix := raw[:keyPrefixLen]
 			cands, err := q.ListActiveAPIKeysByPrefix(r.Context(), prefix)
 			if err != nil {
 				WriteErrorAsProblem(w, r, fmt.Errorf("api_keys lookup: %w", err))
@@ -142,11 +155,13 @@ func AuthMiddleware(q *gen.Queries) func(http.Handler) http.Handler {
 					continue
 				}
 				if okMatch {
-					ctx := context.WithValue(r.Context(), ctxKeyAuthedKey, authedKey{
+					ak := authedKey{
 						ID:     c.ID.String(),
 						Name:   c.Name,
 						Scopes: c.Scopes,
-					})
+					}
+					storeAuthCache(r.Context(), rdb, raw, ak)
+					ctx := context.WithValue(r.Context(), ctxKeyAuthedKey, ak)
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}

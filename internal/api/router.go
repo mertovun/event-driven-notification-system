@@ -82,7 +82,7 @@ func NewRouter(d Deps) http.Handler {
 	// V1 resource routes — auth, body-size limit, then resource handlers.
 	r.Route("/v1", func(api chi.Router) {
 		api.Use(MaxBodyBytes(MaxBodyBytesDefault))
-		api.Use(AuthMiddleware(d.Queries))
+		api.Use(AuthMiddleware(d.Queries, d.Redis))
 
 		// notifications — write
 		api.Route("/notifications", func(n chi.Router) {

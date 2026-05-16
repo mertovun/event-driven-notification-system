@@ -50,3 +50,4 @@ new ADR that marks the old one as *Superseded* and explains the change.
 | [0011](0011-argon2id-over-bcrypt.md) | argon2id over bcrypt for API key hashing |
 | [0014](0014-websocket-over-sse.md) | WebSocket over Server-Sent Events for status push |
 | [0018](0018-coder-websocket-library.md) | `coder/websocket` over `gorilla/websocket` |
+| [0021](0021-verified-key-auth-cache.md) | Verified-key cache in Redis for the auth hot path |
