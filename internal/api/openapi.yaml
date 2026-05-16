@@ -214,6 +214,108 @@ paths:
       responses:
         '204': { description: Deprecated }
 
+  /v1/admin/dead-letters:
+    get:
+      summary: List dead-lettered notifications
+      tags: [Admin]
+      parameters:
+        - in: query
+          name: channel
+          schema: { $ref: '#/components/schemas/Channel' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/DLQListResponse' } }
+
+  /v1/admin/dead-letters/{id}:
+    get:
+      summary: Get one dead-letter row by notification id
+      tags: [Admin]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/DeadLetter' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      summary: Purge a dead-letter entry (terminal — no replay possible after this)
+      tags: [Admin]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Purged }
+
+  /v1/admin/dead-letters/{id}/replay:
+    post:
+      summary: Reset a dead-lettered notification back to pending and re-publish
+      description: |
+        Resets the notification row in place (status → pending, attempt_count → 0,
+        last_error → NULL, correlation_id rotated) and writes a fresh outbox row.
+        Audited under `dlq_replay`. See ADR-0019 for the reset-in-place vs
+        clone-with-replay_of trade-off.
+      tags: [Admin]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notification_id: { type: string, format: uuid }
+                  new_status: { type: string, enum: [pending] }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/admin/api-keys/{id}/revoke:
+    post:
+      summary: Revoke an API key (sets revoked_at and busts the verified-key cache)
+      description: |
+        Marks the row revoked in Postgres and writes a per-id revocation marker
+        to Redis so the auth hot path stops honouring cached entries on the next
+        request. Without the marker, revocation took up to 60s to propagate
+        through the verified-key cache. See ADR-0021.
+      tags: [Admin]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  status: { type: string, enum: [revoked] }
+                  cached: { type: boolean, description: "true when the Redis revocation marker was written" }
+
+  /v1/ws/notifications:
+    get:
+      summary: WebSocket fan-out of status events
+      description: |
+        Upgrades to a WebSocket connection that emits JSON status events
+        (`pending → queued → sending → sent | failed | dead_letter`) for the
+        caller's filter. Filter query params: `batch_id` (UUID, optional),
+        `channel` (sms|email|push, optional, repeatable). PII-safe by
+        construction — payload contains notification_id, batch_id, channel,
+        status, at, correlation_id only. Per-replica fan-out (each WS client
+        gets every event matching its filter; no cross-replica deduplication
+        — see ADR-0014).
+      tags: [WebSocket]
+      parameters:
+        - { in: query, name: batch_id, schema: { type: string, format: uuid } }
+        - { in: query, name: channel, schema: { type: array, items: { $ref: '#/components/schemas/Channel' } } }
+      responses:
+        '101':
+          description: Switching Protocols
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /livez:
     get:
       summary: Liveness probe (process alive)
@@ -410,6 +512,22 @@ components:
         updated_at: { type: string, format: date-time }
         deprecated_at: { type: string, format: date-time, nullable: true }
 
+    DeadLetter:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        notification_id: { type: string, format: uuid }
+        reason: { type: string }
+        dlq_at: { type: string, format: date-time }
+        payload: { description: "Original notification envelope at the time of DLQ" }
+
+    DLQListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DeadLetter' }
+
     Problem:
       type: object
       properties:
@@ -429,6 +547,10 @@ components:
   responses:
     Unauthorized:
       description: Missing or invalid bearer token
+      content:
+        application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } }
+    Forbidden:
+      description: Bearer token authenticated but lacks the required scope
       content:
         application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } }
     NotFound:
