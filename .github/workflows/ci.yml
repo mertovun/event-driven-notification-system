@@ -24,7 +24,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v9
         with:
           # install-mode: goinstall builds the linter from source using the
           # workflow's Go toolchain (1.26 via setup-go above). Otherwise the
