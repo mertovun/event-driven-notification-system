@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      otel:
+        patterns:
+          - "go.opentelemetry.io/*"
+      pgx:
+        patterns:
+          - "github.com/jackc/pgx*"
+      testcontainers:
+        patterns:
+          - "github.com/testcontainers/*"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
