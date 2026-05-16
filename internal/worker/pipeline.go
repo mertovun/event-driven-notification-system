@@ -77,7 +77,7 @@ func New(
 	logger *slog.Logger,
 ) *Pipeline {
 	chanLogger := logger.With("channel", channel)
-	return &Pipeline{
+	p := &Pipeline{
 		channel:         channel,
 		pool:            pool,
 		q:               q,
@@ -85,7 +85,7 @@ func New(
 		limiter:         limiter,
 		provider:        prov,
 		queuePub:        queuePub,
-		breaker:         newBreaker(channel, chanLogger),
+		breaker:         newBreaker(channel, chanLogger, metrics),
 		metrics:         metrics,
 		eventsPub:       eventsPub,
 		logger:          chanLogger,
@@ -93,6 +93,13 @@ func New(
 		rateCapacity:    100,
 		maxAttempts:     10,
 	}
+	// Seed the breaker-state gauge to "closed" so dashboards don't show
+	// "no data" until the first state transition. OnStateChange only fires
+	// on transitions, not on startup.
+	if metrics != nil {
+		metrics.CircuitBreakerState.WithLabelValues(channel).Set(breakerStateValue(p.breaker.State()))
+	}
+	return p
 }
 
 // handleTimeout bounds the worst-case wall-clock duration of one delivery.

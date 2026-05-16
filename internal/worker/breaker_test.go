@@ -18,7 +18,7 @@ func silentLogger() *slog.Logger {
 // 5 consecutive failures must open the circuit immediately, no sample-size gate.
 func TestBreaker_TripsOnConsecutiveFailures(t *testing.T) {
 	t.Parallel()
-	cb := newBreaker("sms", silentLogger())
+	cb := newBreaker("sms", silentLogger(), nil)
 	boom := errors.New("provider 500")
 
 	for i := 0; i < 5; i++ {
@@ -37,7 +37,7 @@ func TestBreaker_TripsOnConsecutiveFailures(t *testing.T) {
 // pattern (21 reqs, 66% failure) with no 5-in-a-row to avoid the fast path.
 func TestBreaker_TripsOnFailureRate(t *testing.T) {
 	t.Parallel()
-	cb := newBreaker("email", silentLogger())
+	cb := newBreaker("email", silentLogger(), nil)
 	boom := errors.New("provider 503")
 
 	// Pattern: SFFSFFSFFSFFSFFSFFSFF → 7 success, 14 failure, 21 reqs total.
@@ -59,7 +59,7 @@ func TestBreaker_TripsOnFailureRate(t *testing.T) {
 // triggers, and our test never hits 5 in a row.
 func TestBreaker_DoesNotTripBelowMinimumSampleSize(t *testing.T) {
 	t.Parallel()
-	cb := newBreaker("push", silentLogger())
+	cb := newBreaker("push", silentLogger(), nil)
 	boom := errors.New("provider 500")
 
 	// 10 calls: 5 success, 5 failure, interleaved. Total < 20.
