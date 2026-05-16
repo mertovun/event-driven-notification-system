@@ -2,27 +2,60 @@ package queue
 
 import "testing"
 
-func TestWaitQueueForAttempt(t *testing.T) {
+func TestWaitTierForAttempt(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name    string
 		attempt int32
 		want    string
 	}{
-		{"first retry hits wait.5s", 1, QueueRetry5s},
-		{"attempt 0 (defensive) also wait.5s", 0, QueueRetry5s},
-		{"second retry hits wait.30s", 2, QueueRetry30s},
-		{"third retry hits wait.5m", 3, QueueRetry5m},
-		{"high attempt count stays on wait.5m", 99, QueueRetry5m},
+		{"first retry hits 5s tier", 1, "5s"},
+		{"attempt 0 (defensive) also 5s", 0, "5s"},
+		{"second retry hits 30s tier", 2, "30s"},
+		{"third retry hits 5m tier", 3, "5m"},
+		{"high attempt count stays on 5m", 99, "5m"},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := WaitQueueForAttempt(tc.attempt)
+			got := WaitTierForAttempt(tc.attempt)
 			if got != tc.want {
-				t.Errorf("WaitQueueForAttempt(%d) = %q; want %q", tc.attempt, got, tc.want)
+				t.Errorf("WaitTierForAttempt(%d) = %q; want %q", tc.attempt, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestWaitQueueForAttempt(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		channel string
+		attempt int32
+		want    string
+	}{
+		{"sms attempt 1", "sms", 1, "notifications.sms.wait.5s"},
+		{"email attempt 2", "email", 2, "notifications.email.wait.30s"},
+		{"push attempt 5", "push", 5, "notifications.push.wait.5m"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := WaitQueueForAttempt(tc.channel, tc.attempt)
+			if got != tc.want {
+				t.Errorf("WaitQueueForAttempt(%q, %d) = %q; want %q", tc.channel, tc.attempt, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestWaitRoutingKey(t *testing.T) {
+	t.Parallel()
+	got := WaitRoutingKey("email", "30s")
+	want := "notification.email.wait.30s"
+	if got != want {
+		t.Errorf("WaitRoutingKey = %q; want %q", got, want)
 	}
 }

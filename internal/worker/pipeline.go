@@ -212,7 +212,10 @@ func (p *Pipeline) requeueViaWaitTier(ctx context.Context, d queue.Delivery, pre
 		"correlation_id":  env.CorrelationID,
 		"notification_id": env.NotificationID,
 	}
-	return p.queuePub.PublishToWaitQueue(ctx, queue.QueueRetry5s, queue.PublishMessage{
+	// Always wait.5s for infra-transient redeliveries — short enough not to
+	// stall recovery, long enough not to busy-loop. Per-channel queue so the
+	// DLX bounce reliably lands on this channel's main queue.
+	return p.queuePub.PublishToWait(ctx, env.Channel, "5s", queue.PublishMessage{
 		RoutingKey: queue.RoutingKey(env.Channel),
 		Payload:    d.Body(),
 		Priority:   priorityToAMQP(env.Priority),
@@ -505,8 +508,8 @@ func (p *Pipeline) routeToRetryTier(ctx context.Context, attempt int32, body []b
 		logger.Warn("no queue publisher; falling back to nack-requeue")
 		return fmt.Errorf("queue publisher unavailable")
 	}
-	waitQ := queue.WaitQueueForAttempt(attempt)
-	err := p.queuePub.PublishToWaitQueue(ctx, waitQ, queue.PublishMessage{
+	tier := queue.WaitTierForAttempt(attempt)
+	err := p.queuePub.PublishToWait(ctx, env.Channel, tier, queue.PublishMessage{
 		RoutingKey: queue.RoutingKey(env.Channel),
 		Payload:    body,
 		Priority:   priorityToAMQP(env.Priority),
@@ -518,10 +521,10 @@ func (p *Pipeline) routeToRetryTier(ctx context.Context, attempt int32, body []b
 	})
 	if err != nil {
 		logger.Error("retry-tier publish failed; will nack-requeue",
-			"wait_queue", waitQ, "attempt", attempt, "err", err)
+			"channel", env.Channel, "tier", tier, "attempt", attempt, "err", err)
 		return err
 	}
-	logger.Info("queued for retry tier", "wait_queue", waitQ, "attempt", attempt)
+	logger.Info("queued for retry tier", "channel", env.Channel, "tier", tier, "attempt", attempt)
 	return nil
 }
 

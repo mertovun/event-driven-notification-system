@@ -187,16 +187,19 @@ func (p *Publisher) Publish(ctx context.Context, m PublishMessage) error {
 	return p.publish(ctx, ExchangeMain, m.RoutingKey, true, m)
 }
 
-// PublishToWaitQueue publishes directly to one of the TTL retry-tier queues
-// via the default exchange. See PublishMessage docs in topology.go.
-func (p *Publisher) PublishToWaitQueue(ctx context.Context, waitQueue string, m PublishMessage) error {
-	if m.Headers == nil {
-		m.Headers = make(map[string]any, 1)
-	}
-	if _, ok := m.Headers["x-original-routing-key"]; !ok {
-		m.Headers["x-original-routing-key"] = m.RoutingKey
-	}
-	return p.publish(ctx, "", waitQueue, false, m)
+// PublishToWait routes a message into the per-channel wait queue for the
+// given tier ("5s" / "30s" / "5m"). The publish goes through ExchangeMain
+// with the wait-tier routing key (see WaitRoutingKey); the wait queue's
+// x-dead-letter-routing-key bounces the message back to the channel queue
+// on TTL expiry.
+//
+// Previously this published via the default exchange with routing key set
+// to the wait queue name, which caused the broker-side DLX to preserve THAT
+// key on bounce — so the bounced message had routing key
+// `notifications.wait.5s` and ExchangeMain had no binding for it. Result:
+// the wait-tier message bounced into the void.
+func (p *Publisher) PublishToWait(ctx context.Context, channel, tier string, m PublishMessage) error {
+	return p.publish(ctx, ExchangeMain, WaitRoutingKey(channel, tier), true, m)
 }
 
 func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, mandatory bool, m PublishMessage) error {
