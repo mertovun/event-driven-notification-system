@@ -34,6 +34,7 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/store"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 	"github.com/mertovun/event-driven-notification-system/internal/worker"
+	"github.com/mertovun/event-driven-notification-system/internal/ws"
 )
 
 // Injected via -ldflags at build time.
@@ -151,6 +152,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 
 	idemStore := idempotency.NewStore(rdb, 0)
 	eventsPub := events.NewPublisher(rdb, logger)
+	wsHub := ws.NewHub(rdb, logger)
 
 	if cfg.DevAPIKey != "" {
 		if err := api.SeedDevKey(ctx, q, cfg.DevAPIKey); err != nil {
@@ -200,6 +202,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		Redis:       rdb,
 		AMQP:        amqpChecker(pub),
 		Metrics:     metrics,
+		WSHub:       wsHub,
 		Logger:      logger,
 		BuildInfo:   api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
 	})
@@ -222,6 +225,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	if workMgr != nil {
 		g.Go(func() error { return workMgr.Run(gctx) })
 	}
+	g.Go(func() error { return wsHub.Run(gctx) })
 
 	g.Go(func() error {
 		logger.Info("http server listening", "addr", cfg.HTTPAddr)

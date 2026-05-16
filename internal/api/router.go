@@ -15,6 +15,7 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
 	"github.com/mertovun/event-driven-notification-system/internal/observability"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
+	"github.com/mertovun/event-driven-notification-system/internal/ws"
 )
 
 // BuildInfo is injected from main via -ldflags. Surfaces at /version.
@@ -38,6 +39,7 @@ type Deps struct {
 	Redis       *redis.Client
 	AMQP        AMQPHealthChecker
 	Metrics     *observability.Metrics
+	WSHub       *ws.Hub
 	Logger      *slog.Logger
 	BuildInfo   BuildInfo
 }
@@ -84,6 +86,12 @@ func NewRouter(d Deps) http.Handler {
 			n.With(RequireScope(ScopeRead)).Get("/batch/{batchId}", notifH.getByBatch)
 			n.With(RequireScope(ScopeRead)).Get("/", notifH.list)
 		})
+
+		// websocket — read scope only.
+		if d.WSHub != nil {
+			api.With(RequireScope(ScopeRead)).
+				Get("/ws/notifications", ws.Handler(d.WSHub, ws.DefaultConfig(), d.Logger))
+		}
 
 		// templates
 		api.Route("/templates", func(t chi.Router) {
