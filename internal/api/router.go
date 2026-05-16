@@ -31,6 +31,13 @@ type AMQPHealthChecker interface {
 	Ping(ctx context.Context) error
 }
 
+// AuditVerifier exposes a single-shot chain verification. Implemented by
+// internal/audit.ChainVerifier; kept as an interface here so the admin
+// handler can be tested without spinning up the background loop.
+type AuditVerifier interface {
+	VerifyOnce(ctx context.Context) (int64, error)
+}
+
 // Deps holds the dependencies handlers need. Wired in main; passed to NewRouter.
 type Deps struct {
 	Pool             *pgxpool.Pool
@@ -44,6 +51,7 @@ type Deps struct {
 	BuildInfo        BuildInfo
 	PProfEnabled     bool
 	SchedulerEnabled bool // when false, POST /v1/notifications rejects scheduled_at
+	AuditVerifier    AuditVerifier
 }
 
 // NewRouter builds the Chi router with the middleware chain and operational endpoints.
@@ -113,6 +121,11 @@ func NewRouter(d Deps) http.Handler {
 			// API-key management. POST instead of DELETE because revocation
 			// records a state transition; the row is not deleted.
 			a.Post("/api-keys/{id}/revoke", adminH.revokeAPIKey)
+
+			// Audit hash-chain on-demand verification. Background verifier
+			// already publishes audit_chain_broken_links every 5 min; this
+			// endpoint lets operators force a fresh check.
+			a.Get("/audit/verify", adminH.verifyAuditChain)
 		})
 
 		// templates

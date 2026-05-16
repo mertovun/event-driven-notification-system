@@ -43,6 +43,12 @@ type Metrics struct {
 	// Idempotency replay (rare but high signal)
 	IdempotencyReplayTotal *prometheus.CounterVec
 
+	// Audit hash-chain — broken-link count from the latest VerifyAuditChain
+	// run. Sampled by the audit-verifier background loop. Should be 0; any
+	// non-zero is tamper-evidence (or a chain-fork bug; the advisory-lock
+	// migration 0011 closes the only known fork path).
+	AuditChainBrokenLinks prometheus.Gauge
+
 	// Build info — set once at startup
 	BuildInfo *prometheus.GaugeVec
 }
@@ -130,6 +136,11 @@ func NewMetrics() *Metrics {
 		Help: "Idempotency-Key replays returned verbatim.",
 	}, []string{"endpoint"})
 
+	m.AuditChainBrokenLinks = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "audit_chain_broken_links",
+		Help: "Count of broken links in admin_audit's hash chain from the most recent VerifyAuditChain run. 0 = intact. Non-zero is tamper-evidence; page.",
+	})
+
 	m.BuildInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "build_info",
 		Help: "Build metadata, set to 1 at startup.",
@@ -150,6 +161,7 @@ func NewMetrics() *Metrics {
 		m.QueueDepth,
 		m.OutboxLagSeconds,
 		m.IdempotencyReplayTotal,
+		m.AuditChainBrokenLinks,
 		m.BuildInfo,
 	} {
 		reg.MustRegister(c)

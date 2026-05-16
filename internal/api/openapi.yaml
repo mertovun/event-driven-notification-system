@@ -294,6 +294,29 @@ paths:
                   status: { type: string, enum: [revoked] }
                   cached: { type: boolean, description: "true when the Redis revocation marker was written" }
 
+  /v1/admin/audit/verify:
+    get:
+      summary: Verify the admin_audit hash chain
+      description: |
+        Runs VerifyAuditChain on demand and returns the broken-link count.
+        Zero means the chain is intact (no post-hoc edits). Non-zero is
+        tamper-evidence. The background verifier also publishes the same
+        count to Prometheus as `audit_chain_broken_links` every 5 minutes;
+        this endpoint forces a fresh check without waiting for the next
+        tick. See ADR-0019 and migration 0011 for the concurrency fix that
+        eliminated the previous false-positive race.
+      tags: [Admin]
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  broken_links: { type: integer, format: int64, description: "Count of mismatched links; 0 = intact" }
+                  intact: { type: boolean }
+
   /v1/ws/notifications:
     get:
       summary: WebSocket fan-out of status events

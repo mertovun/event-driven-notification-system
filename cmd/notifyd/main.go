@@ -23,6 +23,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mertovun/event-driven-notification-system/internal/api"
+	"github.com/mertovun/event-driven-notification-system/internal/audit"
 	"github.com/mertovun/event-driven-notification-system/internal/config"
 	"github.com/mertovun/event-driven-notification-system/internal/events"
 	"github.com/mertovun/event-driven-notification-system/internal/idempotency"
@@ -164,6 +165,13 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	eventsPub := events.NewPublisher(rdb, logger)
 	wsHub := ws.NewHub(rdb, logger)
 
+	// Audit hash-chain verifier — DB-only, runs in every mode. Owns the
+	// background tick that publishes audit_chain_broken_links and the
+	// VerifyOnce call wired into GET /v1/admin/audit/verify. Without this
+	// the chain trigger was tamper-evident in theory but had no caller in
+	// product code (see assessment_v3 SRE/Scope findings).
+	auditVerifier := audit.NewChainVerifier(q, metrics, logger, audit.Default())
+
 	if cfg.DevAPIKey != "" {
 		// Hard-fail in non-development environments. ADR-0011 promised this
 		// guard; without it a committed .env containing the literal dev key
@@ -255,6 +263,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		BuildInfo:        api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
 		PProfEnabled:     cfg.PProfEnabled,
 		SchedulerEnabled: cfg.SchedulerEnabled,
+		AuditVerifier:    auditVerifier,
 	})
 	tracedRouter := otelhttp.NewHandler(router, "notifyd-http",
 		otelhttp.WithFilter(func(r *http.Request) bool {
@@ -281,6 +290,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	if sweepSnd != nil {
 		g.Go(func() error { return sweepSnd.Run(gctx) })
 	}
+	g.Go(func() error { return auditVerifier.Run(gctx) })
 	// Queue-depth sampler runs alongside the publisher (worker / all modes).
 	if pub != nil {
 		sampler := queue.NewDepthSampler(pub, metrics, logger, 0)

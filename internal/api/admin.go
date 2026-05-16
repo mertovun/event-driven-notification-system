@@ -19,13 +19,14 @@ import (
 // adminHandler exposes DLQ inspection and replay + API-key revocation endpoints.
 // All routes require the `admin` scope, enforced upstream by RequireScope().
 type adminHandler struct {
-	notifH *notificationsHandler // reused for outbox-row insert helper
-	q      *gen.Queries
-	rdb    *redis.Client // optional: for auth-cache revocation propagation
+	notifH   *notificationsHandler // reused for outbox-row insert helper
+	q        *gen.Queries
+	rdb      *redis.Client // optional: for auth-cache revocation propagation
+	verifier AuditVerifier // optional: for GET /v1/admin/audit/verify
 }
 
 func newAdminHandler(d Deps, notifH *notificationsHandler) *adminHandler {
-	return &adminHandler{notifH: notifH, q: d.Queries, rdb: d.Redis}
+	return &adminHandler{notifH: notifH, q: d.Queries, rdb: d.Redis, verifier: d.AuditVerifier}
 }
 
 type deadLetterResponse struct {
@@ -268,6 +269,32 @@ func (h *adminHandler) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
 		"id":     id,
 		"status": "revoked",
 		"cached": h.rdb != nil,
+	})
+}
+
+// verifyAuditChain — GET /v1/admin/audit/verify
+//
+// Runs VerifyAuditChain on demand and returns the broken-link count. The
+// background verifier (internal/audit) already publishes
+// audit_chain_broken_links to Prometheus on a 5-min tick; this endpoint lets
+// operators force a fresh check without waiting.
+//
+// Response: 200 with {"broken_links": N, "intact": bool}. 503 on verifier
+// unavailable (verifier not wired) or query failure.
+func (h *adminHandler) verifyAuditChain(w http.ResponseWriter, r *http.Request) {
+	if h.verifier == nil {
+		WriteErrorAsProblem(w, r, fmt.Errorf("audit verifier not configured"))
+		return
+	}
+	broken, err := h.verifier.VerifyOnce(r.Context())
+	if err != nil {
+		WriteErrorAsProblem(w, r, fmt.Errorf("verify audit chain: %w", err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"broken_links": broken,
+		"intact":       broken == 0,
 	})
 }
 
