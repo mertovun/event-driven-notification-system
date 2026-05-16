@@ -94,7 +94,13 @@ type Querier interface {
 	MarkSent(ctx context.Context, id uuid.UUID) (Notification, error)
 	OutboxLagSeconds(ctx context.Context) (float64, error)
 	// Worker retry path: sending → queued (next attempt re-publishes).
+	// Increments attempt_count because a provider call was attempted.
 	RevertToQueued(ctx context.Context, arg RevertToQueuedParams) error
+	// Worker retry path for cases where no provider call happened — breaker
+	// open, sustained rate-limit throttle. Without this, every wait-tier bounce
+	// during a sustained outage advances the attempt counter and prematurely
+	// dead-letters a perfectly recoverable message.
+	RevertToQueuedNoAttempt(ctx context.Context, arg RevertToQueuedNoAttemptParams) error
 	RevokeAPIKey(ctx context.Context, id uuid.UUID) error
 	// Recovery path for rows orphaned by a crashed worker. The flow is:
 	//   MarkSendingCAS (pending|queued → sending) → worker crashes → row stays

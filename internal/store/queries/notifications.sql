@@ -86,8 +86,19 @@ RETURNING *;
 
 -- name: RevertToQueued :exec
 -- Worker retry path: sending → queued (next attempt re-publishes).
+-- Increments attempt_count because a provider call was attempted.
 UPDATE notifications
 SET status = 'queued', attempt_count = attempt_count + 1,
+    last_error = $2, updated_at = now()
+WHERE id = $1 AND status = 'sending';
+
+-- name: RevertToQueuedNoAttempt :exec
+-- Worker retry path for cases where no provider call happened — breaker
+-- open, sustained rate-limit throttle. Without this, every wait-tier bounce
+-- during a sustained outage advances the attempt counter and prematurely
+-- dead-letters a perfectly recoverable message.
+UPDATE notifications
+SET status = 'queued',
     last_error = $2, updated_at = now()
 WHERE id = $1 AND status = 'sending';
 

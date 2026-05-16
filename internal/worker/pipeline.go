@@ -264,7 +264,8 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 	}
 	if !gotLock {
 		// Another worker has it; revert our CAS and ack — the other will deliver.
-		_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID})
+		// No provider call happened, so don't increment attempt_count.
+		_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID})
 		logger.Info("inflight lock held by another worker; deferring")
 		return nil
 	}
@@ -285,7 +286,10 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 		wait := dec.RetryAfter
 		const maxInlineWait = 200 * time.Millisecond
 		if wait > maxInlineWait {
-			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID})
+			// No provider call happened — throttle is a flow-control event,
+			// not a delivery attempt. Skip attempt_count increment so a
+			// sustained throttle doesn't burn the retry budget.
+			_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID})
 			logger.Info("rate-limit throttle sustained; routing to retry tier", "retry_after", wait)
 			// Treat throttle like attempt 1 for tiering purposes — short wait.
 			if rerr := p.routeToRetryTier(ctx, 1, d.Body(), env, logger); rerr != nil {
@@ -295,14 +299,14 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 		}
 		select {
 		case <-ctx.Done():
-			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID})
+			_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID})
 			return ctx.Err()
 		case <-time.After(wait):
 		}
 		// Re-try once after the wait; if still throttled, sustained-path applies.
 		dec, _ = p.limiter.Allow(ctx, "ratelimit:"+p.channel, p.rateLimitPerSec, p.rateCapacity)
 		if !dec.Allowed {
-			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID})
+			_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID})
 			logger.Info("rate-limit still denied after short wait; routing to retry tier")
 			if rerr := p.routeToRetryTier(ctx, 1, d.Body(), env, logger); rerr != nil {
 				return rerr
@@ -330,9 +334,12 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 	}
 
 	// If the breaker is open, treat as a retryable failure (not per-message fault).
+	// No provider call happened, so don't burn the attempt_count budget.
+	// Without this, every wait-tier bounce during a sustained outage advances
+	// the counter and prematurely dead-letters perfectly recoverable messages.
 	if errors.Is(breakerErr, gobreaker.ErrOpenState) || errors.Is(breakerErr, gobreaker.ErrTooManyRequests) {
 		errStr := breakerErr.Error()
-		_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID, LastError: &errStr})
+		_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID, LastError: &errStr})
 		logger.Info("breaker open; routing to retry tier", "attempt", attempt, "err", breakerErr)
 		// Send to wait tier so we don't busy-loop the same message against an open breaker.
 		if rerr := p.routeToRetryTier(ctx, attempt, d.Body(), env, logger); rerr != nil {

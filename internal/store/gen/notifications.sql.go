@@ -527,8 +527,30 @@ type RevertToQueuedParams struct {
 }
 
 // Worker retry path: sending → queued (next attempt re-publishes).
+// Increments attempt_count because a provider call was attempted.
 func (q *Queries) RevertToQueued(ctx context.Context, arg RevertToQueuedParams) error {
 	_, err := q.db.Exec(ctx, revertToQueued, arg.ID, arg.LastError)
+	return err
+}
+
+const revertToQueuedNoAttempt = `-- name: RevertToQueuedNoAttempt :exec
+UPDATE notifications
+SET status = 'queued',
+    last_error = $2, updated_at = now()
+WHERE id = $1 AND status = 'sending'
+`
+
+type RevertToQueuedNoAttemptParams struct {
+	ID        uuid.UUID `json:"id"`
+	LastError *string   `json:"last_error"`
+}
+
+// Worker retry path for cases where no provider call happened — breaker
+// open, sustained rate-limit throttle. Without this, every wait-tier bounce
+// during a sustained outage advances the attempt counter and prematurely
+// dead-letters a perfectly recoverable message.
+func (q *Queries) RevertToQueuedNoAttempt(ctx context.Context, arg RevertToQueuedNoAttemptParams) error {
+	_, err := q.db.Exec(ctx, revertToQueuedNoAttempt, arg.ID, arg.LastError)
 	return err
 }
 
