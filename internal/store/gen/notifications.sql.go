@@ -531,3 +531,65 @@ func (q *Queries) RevertToQueued(ctx context.Context, arg RevertToQueuedParams) 
 	_, err := q.db.Exec(ctx, revertToQueued, arg.ID, arg.LastError)
 	return err
 }
+
+const sweepStuckSending = `-- name: SweepStuckSending :many
+UPDATE notifications
+SET status = 'queued',
+    attempt_count = attempt_count + 1,
+    last_error = COALESCE(last_error, '') || ' [sweep: stuck in sending]',
+    updated_at = now()
+WHERE status = 'sending'
+  AND updated_at < now() - make_interval(secs => $1::int)
+RETURNING id, batch_id, channel, recipient, content, priority, status, idempotency_key, attempt_count, last_error, scheduled_at, created_at, updated_at, sent_at, correlation_id, template_id, template_version, created_by
+`
+
+// Recovery path for rows orphaned by a crashed worker. The flow is:
+//
+//	MarkSendingCAS (pending|queued → sending) → worker crashes → row stays
+//	sending forever → MarkSendingCAS rejects the redelivery (not in pending|
+//	queued) → ack-and-drop → row stranded.
+//
+// This sweeper reclaims rows that have been 'sending' longer than
+// stuck_seconds and returns them so the caller can write a fresh outbox row
+// (the original outbox row was already marked published when the worker
+// picked it up, so without a new row the dispatcher would never re-publish).
+// attempt_count increments so the maxAttempts cap still terminates a
+// poison message.
+func (q *Queries) SweepStuckSending(ctx context.Context, stuckSeconds int32) ([]Notification, error) {
+	rows, err := q.db.Query(ctx, sweepStuckSending, stuckSeconds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Notification{}
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.BatchID,
+			&i.Channel,
+			&i.Recipient,
+			&i.Content,
+			&i.Priority,
+			&i.Status,
+			&i.IdempotencyKey,
+			&i.AttemptCount,
+			&i.LastError,
+			&i.ScheduledAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SentAt,
+			&i.CorrelationID,
+			&i.TemplateID,
+			&i.TemplateVersion,
+			&i.CreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -82,6 +82,18 @@ type Querier interface {
 	// Worker retry path: sending → queued (next attempt re-publishes).
 	RevertToQueued(ctx context.Context, arg RevertToQueuedParams) error
 	RevokeAPIKey(ctx context.Context, id uuid.UUID) error
+	// Recovery path for rows orphaned by a crashed worker. The flow is:
+	//   MarkSendingCAS (pending|queued → sending) → worker crashes → row stays
+	//   sending forever → MarkSendingCAS rejects the redelivery (not in pending|
+	//   queued) → ack-and-drop → row stranded.
+	//
+	// This sweeper reclaims rows that have been 'sending' longer than
+	// stuck_seconds and returns them so the caller can write a fresh outbox row
+	// (the original outbox row was already marked published when the worker
+	// picked it up, so without a new row the dispatcher would never re-publish).
+	// attempt_count increments so the maxAttempts cap still terminates a
+	// poison message.
+	SweepStuckSending(ctx context.Context, stuckSeconds int32) ([]Notification, error)
 	// Idempotent seed for the dev key: insert if absent, update if present.
 	UpsertAPIKey(ctx context.Context, arg UpsertAPIKeyParams) (ApiKey, error)
 }

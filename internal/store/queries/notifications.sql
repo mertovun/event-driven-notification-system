@@ -91,6 +91,27 @@ SET status = 'queued', attempt_count = attempt_count + 1,
     last_error = $2, updated_at = now()
 WHERE id = $1 AND status = 'sending';
 
+-- name: SweepStuckSending :many
+-- Recovery path for rows orphaned by a crashed worker. The flow is:
+--   MarkSendingCAS (pending|queued → sending) → worker crashes → row stays
+--   sending forever → MarkSendingCAS rejects the redelivery (not in pending|
+--   queued) → ack-and-drop → row stranded.
+--
+-- This sweeper reclaims rows that have been 'sending' longer than
+-- stuck_seconds and returns them so the caller can write a fresh outbox row
+-- (the original outbox row was already marked published when the worker
+-- picked it up, so without a new row the dispatcher would never re-publish).
+-- attempt_count increments so the maxAttempts cap still terminates a
+-- poison message.
+UPDATE notifications
+SET status = 'queued',
+    attempt_count = attempt_count + 1,
+    last_error = COALESCE(last_error, '') || ' [sweep: stuck in sending]',
+    updated_at = now()
+WHERE status = 'sending'
+  AND updated_at < now() - make_interval(secs => @stuck_seconds::int)
+RETURNING *;
+
 -- name: IncrementAttempt :exec
 UPDATE notifications
 SET attempt_count = attempt_count + 1, updated_at = now()

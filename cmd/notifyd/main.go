@@ -34,6 +34,7 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/scheduler"
 	"github.com/mertovun/event-driven-notification-system/internal/store"
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
+	"github.com/mertovun/event-driven-notification-system/internal/sweeper"
 	"github.com/mertovun/event-driven-notification-system/internal/worker"
 	"github.com/mertovun/event-driven-notification-system/internal/ws"
 )
@@ -177,6 +178,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		disp     *outbox.Dispatcher
 		schedDsp *scheduler.Dispatcher
 		workMgr  *worker.Manager
+		sweepSnd *sweeper.SendingSweeper
 	)
 	if cfg.Mode == "worker" || cfg.Mode == "all" {
 		var err error
@@ -197,6 +199,12 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		// documented in KNOWN_ISSUES.md.
 		schedID, _ := uuid.NewV7()
 		schedDsp = scheduler.New(pool, q, logger, scheduler.Default(schedID.String()))
+
+		// Sending-sweeper reclaims notifications stranded by a worker crash
+		// between MarkSendingCAS and MarkSent. Stuck rows would otherwise
+		// stay 'sending' forever because the AMQP redelivery's CAS gate
+		// only accepts pending|queued and ack-drops the row.
+		sweepSnd = sweeper.NewSending(pool, q, logger, sweeper.Default())
 
 		// Provider client + rate limiter + worker manager.
 		provClient, err := provider.New(cfg.WebhookURL, "notifyd/0.1")
@@ -244,6 +252,9 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	}
 	if workMgr != nil {
 		g.Go(func() error { return workMgr.Run(gctx) })
+	}
+	if sweepSnd != nil {
+		g.Go(func() error { return sweepSnd.Run(gctx) })
 	}
 	// Queue-depth sampler runs alongside the publisher (worker / all modes).
 	if pub != nil {
