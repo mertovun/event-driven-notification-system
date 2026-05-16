@@ -242,13 +242,15 @@ make load-test       # run all 3 k6 scenarios
 | **E2E** | Full docker-compose stack — API contract, WS push, admin DLQ replay | curl + python WS client. See `make up` quickstart curl examples. |
 | **Load** | k6 scenarios — baseline 50 RPS, priority burst 150 RPS, idempotency replay | `make load-test` |
 
-Latest measured numbers on a clean stack (single replica):
+Latest measured numbers on a clean stack (single replica, macOS arm64, Docker Desktop):
 
-| Scenario | Total reqs | Failed | p99 latency | Notes |
-|---|---|---|---|---|
-| Baseline 50 RPS × 30s | 1500 | 0 | <124ms | well within 500ms threshold |
-| Priority burst 150 RPS × 20s | 2002 | 0 | 1.59s p95 | API back-pressures under burst; no errors |
-| Idempotency 20 RPS × 15s | 300 | 0 | <115ms | replay path under load |
+| Scenario | Total reqs | Failed | Throughput | p95 | p99 | Notes |
+|---|---|---|---|---|---|---|
+| Baseline 50 RPS × 30s | 1,501 | 0 | 49.9 r/s | 99ms | **134ms** | well within 500ms threshold |
+| Priority burst 150 RPS × 20s | 2,174 | 0 | 106.5 r/s | 1.21s | — | API back-pressures gracefully under burst; zero errors |
+| Idempotency 20 RPS × 15s | 301 | 0 | 19.9 r/s | 95ms | 101ms | replay path under load |
+
+`make load-test` runs all three.
 
 ---
 
