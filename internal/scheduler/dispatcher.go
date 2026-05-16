@@ -1,6 +1,6 @@
 // Package scheduler polls scheduled_notifications and dispatches due rows
-// by transitioning them to status=queued and writing a fresh outbox row.
-// See docs/03-queue-and-messaging.md §8.
+// by transitioning them to status=pending and writing an outbox row, which
+// the outbox dispatcher then publishes through the normal path.
 package scheduler
 
 import (

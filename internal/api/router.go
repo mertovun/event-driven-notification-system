@@ -125,7 +125,8 @@ func livezHandler(w http.ResponseWriter, _ *http.Request) {
 
 // readyzHandler returns a JSON breakdown of dependency health.
 // 200 only when every wired dependency passes its check; 503 otherwise.
-// See docs/06-observability.md §6.
+// /livez = process alive (orchestrator restart signal).
+// /readyz = dependencies reachable (orchestrator routing signal).
 func readyzHandler(d Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

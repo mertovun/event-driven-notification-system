@@ -16,7 +16,7 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 )
 
-// Argon2id parameters per docs/05-security-and-networking.md §1.
+// Argon2id parameters: OWASP-recommended baseline.
 // Tuned to take ~50ms on a modern core — fast enough for the request path,
 // slow enough to make brute-force expensive.
 const (
@@ -111,7 +111,7 @@ func AuthedKeyFrom(ctx context.Context) (authedKey, bool) {
 // AuthMiddleware validates the Authorization: Bearer <key> header against api_keys.
 // Returns 401 on missing/invalid; attaches authedKey to context on success.
 //
-// The lookup is a two-step "narrow then verify" per docs/05 §1:
+// The lookup is a two-step "narrow then verify":
 //  1. Read first `keyPrefixLen` chars → SELECT ... WHERE key_prefix = $1.
 //  2. For each candidate, argon2 verify; succeed on first match (constant-time per row).
 func AuthMiddleware(q *gen.Queries) func(http.Handler) http.Handler {

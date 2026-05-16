@@ -1,5 +1,6 @@
 // Package template handles template parsing, variable extraction, and rendering
-// at create time. See docs/12-template-system.md §3.
+// at create time (not delivery time) so retries produce identical wire bytes
+// and template edits don't retroactively alter delivered notifications.
 package template
 
 import (
@@ -20,7 +21,8 @@ var ErrRender = errors.New("template: render failed")
 // varRefRe is the practical match for `{{ .Foo }}` references. We accept dot-prefixed
 // identifiers — anything more elaborate (e.g., method calls, pipelines) is allowed
 // at parse/render time but won't be listed as a required variable here.
-// See docs/12 §4 for the regex-shortcut rationale.
+// We use a regex shortcut rather than walking the parsed AST: our variable model is
+// flat (no nested struct access permitted), so simple `{{ .X }}` references are sufficient.
 var varRefRe = regexp.MustCompile(`\{\{[^}]*\.([A-Za-z_][A-Za-z0-9_]*)[^}]*\}\}`)
 
 // Parse compiles the body. On success returns the parsed template plus the set of

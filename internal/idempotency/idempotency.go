@@ -1,5 +1,6 @@
 // Package idempotency implements the Idempotency-Key cache (Redis) with body-hash
-// canonicalization and replay semantics. See docs/01-domain-and-api.md §8.
+// canonicalization and replay semantics. 24h TTL; same key + same body → replay
+// stored response; same key + different body → 409.
 package idempotency
 
 import (
@@ -15,7 +16,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// DefaultTTL is the idempotency window per docs/01 §8.
+// DefaultTTL is the idempotency window (24h).
 const DefaultTTL = 24 * time.Hour
 
 // Sentinels surfaced to the API mapper. See internal/notification/errors.go for the

@@ -69,7 +69,7 @@ curl http://localhost:8090/metrics | grep notifications_
    Cross-cutting: slog JSON (PII-redacting), Prometheus /metrics, OpenTelemetry OTLP/gRPC
 ```
 
-**Key decisions, in one line each** — see [docs/adr/](docs/adr/) for full ADRs:
+**Key decisions, in one line each:**
 
 - **Single Go binary** with `--mode=api|worker|all` (default `all`). Scale by replica count.
 - **PostgreSQL + sqlc** — type-safe queries, no ORM, parameterized SQL enforced at compile time.
@@ -153,23 +153,6 @@ GET /docs                # Swagger UI
 ```
 
 Full spec: [`internal/api/openapi.yaml`](internal/api/openapi.yaml).
-
----
-
-## Design Decisions
-
-Each line links to the ADR with the full rationale.
-
-- **[ADR-0001] One Go binary** instead of microservices. Simpler ops, shared composition root, split later when deploy cadence diverges.
-- **[ADR-0002] Postgres + sqlc, no ORM.** Compile-time parameterization, no struct-tag magic, type-safe row mapping.
-- **[ADR-0003] RabbitMQ over Redis Streams / Kafka.** True per-message ack, native priority queues, retry tiers via TTL+DLX. Kafka is a log — wrong shape for our pattern.
-- **[ADR-0004] Redis only for rate-limit + idempotency + pubsub.** Single responsibility — not a queue.
-- **[ADR-0005] Cursor pagination on `(created_at DESC, id DESC)`.** Offset pagination collapses on growing tables.
-- **[ADR-0006] `Idempotency-Key` request header.** De facto industry standard (Stripe, GitHub). 24h TTL, body-hash canonicalization.
-- **[ADR-0007] distroless + nonroot runtime.** No shell, no package manager, read-only rootfs, all caps dropped.
-- **[ADR-0008] App runs migrations on boot.** Atomic with deploy. `--skip-migrate` for emergencies.
-- **[ADR-0009] Transactional outbox (not direct publish).** Eliminates the publish-after-commit race; lets trace context cross the API→worker hop.
-- **[ADR-0010] OpenTelemetry on by default.** Falls back to no-op when no collector is reachable; cheap to leave on.
 
 ---
 
@@ -298,7 +281,6 @@ Latest measured numbers on a clean stack (single replica):
 ├── loadtest/                # k6 scenarios
 ├── scripts/                 # pre-commit hook source
 ├── deploy/                  # docker-compose.yml
-├── docs/adr/                # architecture decision records
 ├── Dockerfile               # multi-stage, distroless final
 ├── Makefile                 # make help to list targets
 ├── sqlc.yaml

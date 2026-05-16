@@ -1,5 +1,4 @@
 // Package outbox implements the transactional outbox dispatcher (claim+publish loop).
-// See docs/11-transactional-outbox.md.
 package outbox
 
 import (
@@ -20,7 +19,7 @@ import (
 	"github.com/mertovun/event-driven-notification-system/internal/store/gen"
 )
 
-// Config tunes the dispatcher. See docs/11 §8.
+// Config tunes the dispatcher.
 type Config struct {
 	PollInterval time.Duration
 	BatchSize    int
@@ -29,7 +28,8 @@ type Config struct {
 	DispatcherID string // identifies this process (UUIDv7 per boot)
 }
 
-// Default returns a Config matching docs/11 §8 starting values.
+// Default returns a Config with sensible starting values: 250ms poll, 50-row batches,
+// 60s claim TTL, 10 attempts before terminal failure.
 func Default(dispatcherID string) Config {
 	return Config{
 		PollInterval: 250 * time.Millisecond,
@@ -138,7 +138,7 @@ func (d *Dispatcher) publishRow(ctx context.Context, row gen.Outbox) {
 	if err := d.q.MarkOutboxPublished(ctx, row.ID); err != nil {
 		d.logger.Error("outbox mark published failed", "id", row.ID, "err", err)
 		// Not fatal — the message will be re-published on the next claim cycle.
-		// Worker-side idempotency layers (see docs/04 §7) protect against dupes.
+		// Worker-side idempotency layers protect against dupes (SETNX in-flight lock + CAS status).
 		return
 	}
 
@@ -175,7 +175,7 @@ func (d *Dispatcher) markFailure(ctx context.Context, row gen.Outbox, pubErr err
 			}
 		}
 		// Mark the outbox row as published-with-zero-route so it's not retried.
-		// Simpler than a dedicated `dead_outbox` table — see docs/11 §13 Open Questions.
+		// Simpler than a dedicated `dead_outbox` table; the notification's status carries the failure.
 		if err := d.q.MarkOutboxPublished(ctx, row.ID); err != nil {
 			d.logger.Error("mark outbox terminated failed", "id", row.ID, "err", err)
 		}

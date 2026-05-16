@@ -1,5 +1,7 @@
 // Package worker contains the per-channel delivery pipeline.
-// See docs/04-processing-and-workers.md §6 for the 14-step pipeline.
+// Each worker: consume AMQP delivery → CAS notification.status → claim
+// in-flight lock → rate-limit gate → breaker.Execute(provider.Send) →
+// record delivery_attempts → MarkSent / RevertToQueued / dead-letter.
 package worker
 
 import (
@@ -50,7 +52,7 @@ type Pipeline struct {
 	eventsPub *events.Publisher
 	logger    *slog.Logger
 
-	// Rate-limit settings — 100/s per channel, capacity = 1s burst (docs/04 §2).
+	// Rate-limit settings — 100/s per channel, capacity = 1s burst.
 	rateLimitPerSec float64
 	rateCapacity    float64
 }

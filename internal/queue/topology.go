@@ -6,7 +6,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// Topology naming. See docs/03-queue-and-messaging.md §1.
+// Topology naming. One topic exchange + per-channel priority queues + DLX + retry tiers.
 const (
 	ExchangeMain = "notifications.exchange"
 	ExchangeDLX  = "notifications.dlx"

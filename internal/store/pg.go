@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// NewPool builds a pgx pool with the tuned defaults from docs/02-data-and-persistence.md §12.
+// NewPool builds a pgx pool with tuned defaults (MaxConns=20, statement_timeout=5s).
 // The caller owns the returned pool and must Close() on shutdown.
 func NewPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(databaseURL)
