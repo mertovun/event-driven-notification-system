@@ -116,6 +116,11 @@ type Querier interface {
 	SweepStuckSending(ctx context.Context, stuckSeconds int32) ([]Notification, error)
 	// Idempotent seed for the dev key: insert if absent, update if present.
 	UpsertAPIKey(ctx context.Context, arg UpsertAPIKeyParams) (ApiKey, error)
+	// Tamper-evidence check: returns the count of broken links — rows whose
+	// prev_hash doesn't equal the previous row's row_hash. Zero means the chain
+	// is intact. Any non-zero result is evidence that a row was edited or
+	// deleted after the fact. Operators page on this.
+	VerifyAuditChain(ctx context.Context) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

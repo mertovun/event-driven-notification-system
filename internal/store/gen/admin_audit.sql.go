@@ -14,7 +14,7 @@ import (
 const insertAuditEntry = `-- name: InsertAuditEntry :one
 INSERT INTO admin_audit (actor, actor_id, action, target_id, details)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, actor, action, target_id, details, at, actor_id
+RETURNING id, actor, action, target_id, details, at, actor_id, prev_hash, row_hash
 `
 
 type InsertAuditEntryParams struct {
@@ -42,12 +42,14 @@ func (q *Queries) InsertAuditEntry(ctx context.Context, arg InsertAuditEntryPara
 		&i.Details,
 		&i.At,
 		&i.ActorID,
+		&i.PrevHash,
+		&i.RowHash,
 	)
 	return i, err
 }
 
 const listRecentAuditEntries = `-- name: ListRecentAuditEntries :many
-SELECT id, actor, action, target_id, details, at, actor_id FROM admin_audit
+SELECT id, actor, action, target_id, details, at, actor_id, prev_hash, row_hash FROM admin_audit
 ORDER BY at DESC
 LIMIT $1::int
 `
@@ -69,6 +71,8 @@ func (q *Queries) ListRecentAuditEntries(ctx context.Context, pageLimit int32) (
 			&i.Details,
 			&i.At,
 			&i.ActorID,
+			&i.PrevHash,
+			&i.RowHash,
 		); err != nil {
 			return nil, err
 		}
@@ -78,4 +82,27 @@ func (q *Queries) ListRecentAuditEntries(ctx context.Context, pageLimit int32) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const verifyAuditChain = `-- name: VerifyAuditChain :one
+WITH chain AS (
+  SELECT id, row_hash, prev_hash,
+         LAG(row_hash) OVER (ORDER BY id) AS expected_prev
+  FROM admin_audit
+)
+SELECT COUNT(*)::bigint AS broken_links
+FROM chain
+WHERE id > (SELECT MIN(id) FROM admin_audit)
+  AND prev_hash IS DISTINCT FROM expected_prev
+`
+
+// Tamper-evidence check: returns the count of broken links — rows whose
+// prev_hash doesn't equal the previous row's row_hash. Zero means the chain
+// is intact. Any non-zero result is evidence that a row was edited or
+// deleted after the fact. Operators page on this.
+func (q *Queries) VerifyAuditChain(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, verifyAuditChain)
+	var broken_links int64
+	err := row.Scan(&broken_links)
+	return broken_links, err
 }

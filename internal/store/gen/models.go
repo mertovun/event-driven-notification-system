@@ -17,6 +17,8 @@ type AdminAudit struct {
 	Details  []byte             `json:"details"`
 	At       pgtype.Timestamptz `json:"at"`
 	ActorID  uuid.NullUUID      `json:"actor_id"`
+	PrevHash []byte             `json:"prev_hash"`
+	RowHash  []byte             `json:"row_hash"`
 }
 
 type ApiKey struct {
