@@ -184,7 +184,9 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		cfgD.BatchSize = cfg.OutboxBatchSize
 		disp = outbox.New(pool, q, pub, logger, cfgD)
 
-		// Scheduled-notification poller.
+		// Scheduled-notification poller. Shares the main pool — a dedicated
+		// pool was tested and made no difference to the bgreader hang
+		// documented in KNOWN_ISSUES.md.
 		schedID, _ := uuid.NewV7()
 		schedDsp = scheduler.New(pool, q, logger, scheduler.Default(schedID.String()))
 

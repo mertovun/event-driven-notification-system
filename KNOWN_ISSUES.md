@@ -33,7 +33,36 @@ inside `MarkSendingCAS` — the very first DB query of the delivery pipeline.
 | pgxpool exhaustion | `MaxConns=20` is well above all callers; goroutine has a connection |
 | Postgres row-level lock contention | `pg_locks` shows no waits, `pg_stat_activity` shows no other holders |
 | Worker decode / context-propagation bug | The same notification id can be CAS-updated manually from `psql` instantly |
-| `statement_timeout=5000ms` on the connection | Postgres aborts the statement but the Go client's bgreader still waits |
+| `statement_timeout=5000ms` on the connection | PG side actually completed and went idle (`wait_event=ClientRead`). Timeout never fires because there's no in-progress statement to abort. |
+| **Separate pgxpool for scheduler vs workers** | **Reproduces. Pool contention is NOT the root cause.** |
+
+## Diagnosed: pgx bgreader state-corruption
+
+The deeper goroutine dump analysis revealed:
+
+```
+Foreground stuck at:
+  bgreader.go:100 → cond.Wait()   ← parked here, status==Running
+
+Background reader goroutine:
+  (does not exist)                ← zero `bgRead` frames in dump
+```
+
+This is a **broken invariant** inside `pgx/v5/pgconn/internal/bgreader`: the
+foreground caller sees `status == StatusRunning` (so it takes the
+`cond.Wait()` path) but **no `bgRead` goroutine is actually running**.
+Result: the foreground waits forever for a signal that nobody can send.
+
+The suspected race lives in `pgconn.enterPotentialWriteReadDeadlock` +
+`exitPotentialWriteReadDeadlock` interacting with `BGReader.Start` /
+`BGReader.Stop`. Specifically, the `case StatusStopping: r.status =
+StatusRunning` branch in `Start()` flips status back to Running **without
+spawning a fresh `bgRead` goroutine**, relying on the existing one. If the
+existing goroutine exits cleanly through a separate path (e.g. clean
+EOF/timeout), the result is `Running` status with no goroutine.
+
+This is reproducible against pgx v5.9.2 and is bug-class — not configuration
+or schema. The fix likely lives in upstream pgx.
 
 **Likely root cause.** A `pgx` v5 bgreader/cond.Wait() interaction triggered by
 *some* specific combination of:
@@ -62,7 +91,11 @@ assessment build; documented here so it's not silently shipped.
 - [`internal/store/pg.go`](internal/store/pg.go) — pool config
 
 **Next steps if revisiting.**
-1. Add `pgx.LogLevelTrace` logging on a fresh small repro.
-2. Try `pool.Reset()` after each scheduler dispatch to invalidate stale conns.
-3. Try a separate pool for scheduler vs workers — eliminate cross-contamination.
-4. Open a pgx issue with the goroutine dump if the above don't reveal it.
+1. ✅ ~~Try a separate pool for scheduler vs workers~~ — tested, no effect.
+2. Add `pgx.LogLevelTrace` logging on a fresh small repro.
+3. Try `pool.Reset()` after each scheduler dispatch to invalidate stale conns.
+4. Try `MaxConns=2, MinConns=0` plus `MaxConnLifetime=1s` — force connection
+   recycling. If that fixes it, confirms stale-conn theory.
+5. **Reduce to minimal repro** outside the assessment codebase — two goroutines,
+   one pool, one TX-then-release pattern, one single-statement pattern. Submit
+   upstream to https://github.com/jackc/pgx/issues with the goroutine dump.
