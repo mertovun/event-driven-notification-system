@@ -2,99 +2,57 @@
 
 ## Status
 
-Accepted (2026-05-16)
+Accepted (2026-05-16). Note: [RETROSPECTIVE.md](../../RETROSPECTIVE.md)
+revisits whether argon2id was the right baseline for a 100 RPS demo at
+all — the cache is correct *given* argon2id, but the prior question
+(why argon2id?) is the more interesting one.
 
 ## Context
 
-[ADR-0009](0009-argon2id-over-bcrypt.md) chose argon2id over bcrypt for API
-key storage, with parameters `time=2, memory=64MB, parallelism=1` calibrated
-to ~50 ms per verify on the target hardware. That cost is deliberate — it
-makes offline brute-force prohibitively expensive — but it dominates the
-runtime profile.
-
-Under sustained load, profiling (see [PERFORMANCE.md](../../PERFORMANCE.md))
-showed **~96% of CPU time** spent inside `argon2.processBlockGeneric` and
-`argon2.blamkaGeneric`. The pre-cache k6 baseline at 50 RPS measured
-p99 = 116 ms and consumed ~2.5 cores of authentication work per second.
-The application code itself was a rounding error.
-
-The cost is paid **per request**. A long-lived integration that authenticates
-once and reuses a TLS connection still pays the full 50 ms on every HTTP
-request because the bearer header is verified each time. That is the wrong
-shape: a verification result is safe to memoize for a short window.
+[ADR-0009](0009-argon2id-over-bcrypt.md)'s argon2id is deliberately ~50 ms
+per verify. Profiling under 50 RPS (PERFORMANCE.md Phase 1) showed **~96%
+of CPU** in `argon2.processBlockGeneric`; the rest of the app was a
+rounding error. The cost is paid per request — a long-lived integration
+that authenticates once and reuses a TLS connection still pays the full
+50 ms on every header.
 
 ## Decision
 
-Add a Redis-backed verified-key cache in front of the argon2id verify in
-`AuthMiddleware`. On a cache hit, authentication is a single Redis GET
-(~0.3-1.6 ms). On a miss, the original argon2id verify runs and the result
-is stored for 60 seconds. The cache key is `auth:v1:<sha256(raw_bearer)[:16]>`,
-hashed so the raw bearer never lives in Redis as plaintext.
+Redis-backed verified-key cache in front of argon2id in `AuthMiddleware`.
+On hit: one Redis GET (~0.3-1.6 ms). On miss: argon2id verify, cache the
+result for 60 s. Cache key: `auth:v1:<sha256(raw_bearer)[:16]>` — hashed
+so the bearer never lives in Redis as plaintext. Versioned (`v1:`) so
+we can roll forward the schema without colliding.
 
-Cached value is the same authenticated-key struct already attached to the
-request context (`ID`, `Name`, `Scopes`), serialized as JSON.
-
-TTL: **60 seconds**, fixed. Long enough to remove argon2 from the hot path
-for any realistic call pattern; short enough that a revoked key stops
-working within one minute even without explicit invalidation.
-
-The cache name is versioned (`auth:v1:`) so we can roll forward a change to
-the cached schema without colliding with the old format.
+Cached value: `{ID, Name, Scopes}` — the same struct the middleware
+attaches to the request context.
 
 ## Consequences
 
-**Positive (measured, not predicted):**
-
-- p99 at 50 RPS dropped from 116 ms to 7.5 ms (~15×).
-- Total CPU samples over 25 s dropped from 102.12 s to 1.78 s (~57×).
-- argon2 no longer appears in the top 15 profile nodes.
-- Demonstrated ceiling moved from ~50 RPS (CPU-bound) to ~1611 RPS
-  (Postgres-pool-bound). The next bottleneck is `MaxConns=20` in pgxpool,
-  exactly as predicted in the original Tier 3 recommendations.
-
-**Negative:**
-
-- **Revocation lag of up to 60 seconds.** A revoked key still authenticates
-  until the cache entry expires. Mitigated for now by the short TTL; an
-  explicit cache-bust on the admin revoke flow is a follow-up if zero-second
-  revocation becomes a requirement.
-- **Redis becomes a hot-path dependency for auth.** It already is for rate
-  limiting and idempotency, so this does not change the failure surface —
-  but if Redis is unavailable, the middleware falls back to argon2id verify
-  (preserving correctness, losing the speedup).
-- **Cache key hash narrows the keyspace.** `sha256[:16]` is 64 bits, giving
-  ~2^32 birthday-collision pressure at our key population. With a few
-  thousand keys this is fine; if we ever issued millions of API keys we
-  would widen to `sha256[:24]` or 32.
-
-**Security notes:**
-
-- The cache key is `sha256(raw_bearer)` — an attacker who sees a Redis cache
-  key cannot reverse it to the bearer.
-- The cached value contains the key's `scopes`, which is the same data the
-  middleware would otherwise look up from Postgres. No additional secrets
-  enter the cache.
-- A timing-safe comparison is unnecessary on the cache hit path — the cache
-  key is itself the proof of knowledge of the bearer (you need the full
-  bearer to compute the key).
+- **Measured (PERFORMANCE.md Phase 2):** p99 at 50 RPS dropped 116 ms →
+  7.5 ms (~15×); CPU samples 102 s → 1.78 s (~57×); argon2 fell off the
+  top-15 profile.
+- **Revocation lag up to 60 s** — addressed by [ADR-0020](0020-key-revocation-cache-bust.md)
+  per-id marker.
+- **Redis becomes hot-path for auth.** Already true for rate-limit +
+  idempotency. On Redis outage the middleware falls back to argon2id
+  (correctness preserved, speedup lost).
+- **`sha256[:16]` = 64-bit cache key.** Fine at our key population; widen
+  to `[:24]` past millions of keys.
+- **No timing-safe compare needed on hit** — possessing the bearer is
+  the proof; no oracle on Redis-side string comparison.
 
 ## Alternatives considered
 
-- **Per-process in-memory cache (LRU).** Faster than Redis (no network hop)
-  but does not survive process restart and does not share state across
-  replicas. A multi-replica deployment would pay argon2 N× on a restart
-  storm. Redis was already in the stack, so we use it.
-- **Lower argon2 parameters instead of caching.** Cuts the per-verify cost
-  but does not eliminate it, and weakens the security posture documented in
-  [ADR-0009](0009-argon2id-over-bcrypt.md). The cache leaves the security
-  parameters untouched while removing the runtime cost.
-- **JWT or session tokens.** Larger change. Would still need a verification
-  step (signature check) on every request, and the API contract is bearer
-  tokens that map to long-lived integration credentials. Out of scope.
+- **In-memory LRU** — faster, but doesn't survive restart or share across
+  replicas; cold-start storm would pay argon2 N×.
+- **Lower argon2 params** — cuts cost without eliminating it; weakens
+  the security posture deliberately set by ADR-0009.
+- **JWT / session tokens** — larger contract change; signature check
+  still per-request.
 
 ## References
 
-- [PERFORMANCE.md](../../PERFORMANCE.md) Phase 1 & Phase 2 measurements
-- [ADR-0009: argon2id over bcrypt](0009-argon2id-over-bcrypt.md)
 - [`internal/api/auth_cache.go`](../../internal/api/auth_cache.go)
-- [`internal/api/auth_cache_test.go`](../../internal/api/auth_cache_test.go)
+- [ADR-0009](0009-argon2id-over-bcrypt.md), [ADR-0020](0020-key-revocation-cache-bust.md)
+- [PERFORMANCE.md](../../PERFORMANCE.md) Phases 1 & 2
