@@ -50,6 +50,12 @@ type Config struct {
 
 	// Profiling. When true, the HTTP server mounts /debug/pprof/*. Default off in prod.
 	PProfEnabled bool `envconfig:"PPROF_ENABLED" default:"false"`
+
+	// Scheduler feature flag. Off by default because the scheduled-notification
+	// path triggers the pgx v5 bgreader wedge documented in KNOWN_ISSUES.md.
+	// Operators who accept the risk (or test against a different driver
+	// version) enable it explicitly. ADR-0027 captures the decision.
+	SchedulerEnabled bool `envconfig:"SCHEDULER_ENABLED" default:"false"`
 }
 
 // Load reads the Config from the environment.

@@ -214,11 +214,18 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		cfgD.BatchSize = cfg.OutboxBatchSize
 		disp = outbox.New(pool, q, pub, metrics, logger, cfgD)
 
-		// Scheduled-notification poller. Shares the main pool — a dedicated
-		// pool was tested and made no difference to the bgreader hang
-		// documented in KNOWN_ISSUES.md.
-		schedID, _ := uuid.NewV7()
-		schedDsp = scheduler.New(pool, q, logger, scheduler.Default(schedID.String()))
+		// Scheduled-notification poller — feature-flagged off by default
+		// because the pgx v5 bgreader wedge documented in KNOWN_ISSUES.md
+		// will hang the first worker that picks up a scheduled message.
+		// Operators opt in via SCHEDULER_ENABLED=true once they have a
+		// mitigation in place (or after the pgx fix lands). See ADR-0027.
+		if cfg.SchedulerEnabled {
+			schedID, _ := uuid.NewV7()
+			schedDsp = scheduler.New(pool, q, logger, scheduler.Default(schedID.String()))
+			logger.Warn("scheduler enabled despite KNOWN_ISSUES.md pgx wedge — accept the risk")
+		} else {
+			logger.Info("scheduler disabled (SCHEDULER_ENABLED=false); scheduled_at notifications will stay in 'scheduled' status")
+		}
 
 		// Sending-sweeper reclaims notifications stranded by a worker crash
 		// between MarkSendingCAS and MarkSent. Stuck rows would otherwise
@@ -240,16 +247,17 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	}
 
 	router := api.NewRouter(api.Deps{
-		Pool:         pool,
-		Queries:      q,
-		Idempotency:  idemStore,
-		Redis:        rdb,
-		AMQP:         amqpChecker(pub),
-		Metrics:      metrics,
-		WSHub:        wsHub,
-		Logger:       logger,
-		BuildInfo:    api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
-		PProfEnabled: cfg.PProfEnabled,
+		Pool:             pool,
+		Queries:          q,
+		Idempotency:      idemStore,
+		Redis:            rdb,
+		AMQP:             amqpChecker(pub),
+		Metrics:          metrics,
+		WSHub:            wsHub,
+		Logger:           logger,
+		BuildInfo:        api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
+		PProfEnabled:     cfg.PProfEnabled,
+		SchedulerEnabled: cfg.SchedulerEnabled,
 	})
 	tracedRouter := otelhttp.NewHandler(router, "notifyd-http",
 		otelhttp.WithFilter(func(r *http.Request) bool {

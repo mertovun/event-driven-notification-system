@@ -55,14 +55,21 @@ type notificationResponse struct {
 
 // notificationsHandler holds the deps the resource handlers need.
 type notificationsHandler struct {
-	pool    *pgxpool.Pool
-	q       *gen.Queries
-	idem    *idempotency.Store
-	metrics *observability.Metrics
+	pool             *pgxpool.Pool
+	q                *gen.Queries
+	idem             *idempotency.Store
+	metrics          *observability.Metrics
+	schedulerEnabled bool
 }
 
 func newNotificationsHandler(d Deps, idem *idempotency.Store) *notificationsHandler {
-	return &notificationsHandler{pool: d.Pool, q: d.Queries, idem: idem, metrics: d.Metrics}
+	return &notificationsHandler{
+		pool:             d.Pool,
+		q:                d.Queries,
+		idem:             idem,
+		metrics:          d.Metrics,
+		schedulerEnabled: d.SchedulerEnabled,
+	}
 }
 
 // create handles POST /v1/notifications (single).
@@ -88,6 +95,17 @@ func (h *notificationsHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	if fe := validateCreate(req); len(fe) > 0 {
 		WriteValidationProblem(w, r, fe)
+		return
+	}
+
+	// Reject scheduled_at when the scheduler is disabled. Without this the
+	// row would land in 'scheduled' status and stay there forever (no
+	// dispatcher to flip it to pending). Better to surface 400 immediately.
+	if req.ScheduledAt != nil && !h.schedulerEnabled {
+		WriteValidationProblem(w, r, []FieldError{{
+			Field:   "scheduled_at",
+			Message: "scheduler is disabled on this deployment; submit without scheduled_at",
+		}})
 		return
 	}
 
