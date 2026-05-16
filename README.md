@@ -69,18 +69,19 @@ curl http://localhost:8090/metrics | grep notifications_
    Cross-cutting: slog JSON (PII-redacting), Prometheus /metrics, OpenTelemetry OTLP/gRPC
 ```
 
-**Key decisions, in one line each:**
+**Key decisions, in one line each** — see [`docs/adr/`](docs/adr/) for the full rationale of each:
 
-- **Single Go binary** with `--mode=api|worker|all` (default `all`). Scale by replica count.
-- **PostgreSQL + sqlc** — type-safe queries, no ORM, parameterized SQL enforced at compile time.
-- **RabbitMQ over Redis Streams** for priority queues + DLQ-and-replay. Three retry tiers with TTL.
-- **Transactional outbox** is primary; a separate dispatcher claims rows with `FOR UPDATE SKIP LOCKED` and publishes with broker confirms. The API never touches AMQP on the request path.
-- **Redis** for rate-limit (token bucket via atomic Lua), idempotency cache, and Pub/Sub status events. Not used as a queue.
-- **Cursor pagination** on `(created_at DESC, id DESC)`. Offset never used.
-- **Idempotency-Key** request header with 24h TTL, body-hash canonicalization, 409 on conflict, `Idempotency-Replayed: true` on success.
+- **Single Go binary** with `--mode=api|worker|all` (default `all`). Scale by replica count. → [ADR-0001](docs/adr/0001-go-and-single-binary.md)
+- **PostgreSQL + sqlc**, no ORM. Parameterized SQL enforced at compile time. → [ADR-0002](docs/adr/0002-postgres-with-sqlc.md)
+- **RabbitMQ over Redis Streams** for priority queues + DLQ-and-replay. Three retry tiers with TTL. → [ADR-0003](docs/adr/0003-rabbitmq-over-redis-streams.md)
+- **Redis** for rate-limit (token bucket via atomic Lua), idempotency cache, and Pub/Sub status events. Not used as a queue. → [ADR-0004](docs/adr/0004-redis-for-rate-limit-and-idempotency.md)
+- **Cursor pagination** on `(created_at DESC, id DESC)`. Offset never used. → [ADR-0005](docs/adr/0005-cursor-pagination.md)
+- **Idempotency-Key** request header with 24h TTL, body-hash canonicalization, 409 on conflict, `Idempotency-Replayed: true` on success. → [ADR-0006](docs/adr/0006-idempotency-key-header.md)
+- **distroless + nonroot + read-only rootfs + cap_drop ALL** runtime container. → [ADR-0007](docs/adr/0007-distroless-runtime.md)
+- **App runs migrations on boot.** Atomic with deploy. → [ADR-0008](docs/adr/0008-app-runs-migrations.md)
+- **Transactional outbox** is primary; a separate dispatcher claims rows with `FOR UPDATE SKIP LOCKED` and publishes with broker confirms. The API never touches AMQP on the request path. → [ADR-0009](docs/adr/0009-transactional-outbox.md)
+- **OpenTelemetry on by default** with trace context propagated through the outbox `headers` JSONB column. → [ADR-0010](docs/adr/0010-tracing-on-by-default.md)
 - **argon2id** API keys with prefix-narrowed lookup. Scopes: `notifications:read|write|admin`.
-- **distroless + nonroot + read-only rootfs + cap_drop ALL** runtime container.
-- **OpenTelemetry on by default** with trace context propagated through the outbox `headers` JSONB column.
 
 ---
 
@@ -280,6 +281,7 @@ Latest measured numbers on a clean stack (single replica, macOS arm64, Docker De
 │   ├── observability/       # metrics, PII-redacting slog, OTel SDK init
 │   ├── config/              # envconfig
 │   └── platform/            # shared utilities
+├── docs/adr/                # architecture decision records
 ├── loadtest/                # k6 scenarios
 ├── scripts/                 # pre-commit hook source
 ├── deploy/                  # docker-compose.yml
