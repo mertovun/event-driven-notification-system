@@ -29,6 +29,7 @@ type Manager struct {
 	rdb       *redis.Client
 	limiter   *ratelimit.Limiter
 	prov      *provider.HTTPClient
+	queuePub  *queue.Publisher
 	metrics   *observability.Metrics
 	eventsPub *events.Publisher
 	logger    *slog.Logger
@@ -46,6 +47,9 @@ type PoolSpec struct {
 }
 
 // NewManager constructs a Manager. Consumers are dialed lazily in Run().
+// queuePub is required: the worker publishes to retry-tier queues on retryable
+// failures (TTL+DLX bounces back to main exchange), instead of nack-requeue
+// which would busy-loop the same message at full prefetch rate.
 func NewManager(
 	amqpURL string,
 	pool *pgxpool.Pool,
@@ -53,6 +57,7 @@ func NewManager(
 	rdb *redis.Client,
 	limiter *ratelimit.Limiter,
 	prov *provider.HTTPClient,
+	queuePub *queue.Publisher,
 	metrics *observability.Metrics,
 	eventsPub *events.Publisher,
 	logger *slog.Logger,
@@ -65,6 +70,7 @@ func NewManager(
 		rdb:       rdb,
 		limiter:   limiter,
 		prov:      prov,
+		queuePub:  queuePub,
 		metrics:   metrics,
 		eventsPub: eventsPub,
 		logger:    logger,
@@ -93,7 +99,7 @@ func (m *Manager) Run(ctx context.Context) error {
 			continue
 		}
 		// One Pipeline per channel — shared across the N workers for that channel.
-		pipe := New(chName, m.pool, m.q, m.rdb, m.limiter, m.prov, m.metrics, m.eventsPub, m.logger)
+		pipe := New(chName, m.pool, m.q, m.rdb, m.limiter, m.prov, m.queuePub, m.metrics, m.eventsPub, m.logger)
 
 		for i := 0; i < count; i++ {
 			workerName := fmt.Sprintf("%s-%d", chName, i)

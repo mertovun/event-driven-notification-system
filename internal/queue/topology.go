@@ -40,6 +40,25 @@ func RoutingKey(channel string) string {
 	return "notification." + channel
 }
 
+// WaitQueueForAttempt picks the retry-tier queue for the given attempt count
+// (1-indexed; "attempt that just failed"). Tiering is exponential-ish:
+//
+//	attempt 1 → wait.5s    (first retry — fast, network blip)
+//	attempt 2 → wait.30s   (sustained 5xx, slower second try)
+//	attempt 3+ → wait.5m   (longer cooldown, possibly degraded provider)
+//
+// The caller decides what to do past attempt N (typically: dead-letter).
+func WaitQueueForAttempt(attempt int32) string {
+	switch {
+	case attempt <= 1:
+		return QueueRetry5s
+	case attempt == 2:
+		return QueueRetry30s
+	default:
+		return QueueRetry5m
+	}
+}
+
 // DeclareTopology declares all exchanges, queues, and bindings idempotently.
 // Safe to call on every consumer/publisher boot and on reconnect.
 func DeclareTopology(ch *amqp.Channel) error {

@@ -47,6 +47,7 @@ type Pipeline struct {
 	rdb       *redis.Client
 	limiter   *ratelimit.Limiter
 	provider  *provider.HTTPClient
+	queuePub  *queue.Publisher
 	breaker   *gobreaker.CircuitBreaker
 	metrics   *observability.Metrics
 	eventsPub *events.Publisher
@@ -55,6 +56,11 @@ type Pipeline struct {
 	// Rate-limit settings — 100/s per channel, capacity = 1s burst.
 	rateLimitPerSec float64
 	rateCapacity    float64
+
+	// maxAttempts caps how many times a retryable failure can re-tier before
+	// the worker dead-letters the message. The outbox dispatcher also enforces
+	// its own publish-side limit; this is the consumer-side complement.
+	maxAttempts int32
 }
 
 // New builds a Pipeline for the named channel.
@@ -65,6 +71,7 @@ func New(
 	rdb *redis.Client,
 	limiter *ratelimit.Limiter,
 	prov *provider.HTTPClient,
+	queuePub *queue.Publisher,
 	metrics *observability.Metrics,
 	eventsPub *events.Publisher,
 	logger *slog.Logger,
@@ -77,24 +84,40 @@ func New(
 		rdb:             rdb,
 		limiter:         limiter,
 		provider:        prov,
+		queuePub:        queuePub,
 		breaker:         newBreaker(channel, chanLogger),
 		metrics:         metrics,
 		eventsPub:       eventsPub,
 		logger:          chanLogger,
 		rateLimitPerSec: 100,
 		rateCapacity:    100,
+		maxAttempts:     10,
 	}
 }
 
+// handleTimeout bounds the worst-case wall-clock duration of one delivery.
+// Sized to cover: rate-limit short wait (≤200ms) + provider HTTP (10s ceiling
+// in provider.Client) + DB round-trips. Anything beyond this is a wedge
+// (e.g. the pgx bgreader case from KNOWN_ISSUES.md), and we want the consumer
+// loop to unblock so the message can be redelivered to a healthy worker.
+const handleTimeout = 30 * time.Second
+
 // Handle is the queue.Handler for one delivery.
 // Returns nil to ack; queue.ErrTerminal to nack-to-DLQ; any other error to nack-and-requeue.
+//
+// Wraps the inner pipeline in a per-delivery context with a hard deadline.
+// Without this, a wedged DB call (or any other unbounded blocking call inside
+// handle) would block the consumer goroutine indefinitely and prevent
+// graceful shutdown.
 func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 	if p.metrics != nil {
 		p.metrics.WorkerActive.WithLabelValues(p.channel).Inc()
 		defer p.metrics.WorkerActive.WithLabelValues(p.channel).Dec()
 	}
+	handleCtx, cancel := context.WithTimeout(ctx, handleTimeout)
+	defer cancel()
 	start := time.Now()
-	err := p.handle(ctx, d)
+	err := p.handle(handleCtx, d)
 	if p.metrics != nil {
 		p.metrics.DeliveryDurationSecs.WithLabelValues(p.channel).Observe(time.Since(start).Seconds())
 		switch {
@@ -163,14 +186,18 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 		if p.metrics != nil {
 			p.metrics.RateLimitThrottledTotal.WithLabelValues(p.channel).Inc()
 		}
-		// Throttled. Briefly wait (short throttle, ≤200ms) and re-check; otherwise nack-requeue.
+		// Throttled. Briefly wait (short throttle, ≤200ms) and re-check; otherwise
+		// route to retry tier so we don't hot-loop against the sustained throttle.
 		wait := dec.RetryAfter
 		const maxInlineWait = 200 * time.Millisecond
 		if wait > maxInlineWait {
-			// Sustained throttle: revert CAS and nack-requeue so prefetch slot stays flowing.
 			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID})
-			logger.Info("rate-limit throttle sustained; requeue", "retry_after", wait)
-			return errors.New("rate-limited (sustained)")
+			logger.Info("rate-limit throttle sustained; routing to retry tier", "retry_after", wait)
+			// Treat throttle like attempt 1 for tiering purposes — short wait.
+			if rerr := p.routeToRetryTier(ctx, 1, d.Body(), env, logger); rerr != nil {
+				return rerr
+			}
+			return nil
 		}
 		select {
 		case <-ctx.Done():
@@ -182,8 +209,11 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 		dec, _ = p.limiter.Allow(ctx, "ratelimit:"+p.channel, p.rateLimitPerSec, p.rateCapacity)
 		if !dec.Allowed {
 			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID})
-			logger.Info("rate-limit still denied after short wait; requeue")
-			return errors.New("rate-limited (post-wait)")
+			logger.Info("rate-limit still denied after short wait; routing to retry tier")
+			if rerr := p.routeToRetryTier(ctx, 1, d.Body(), env, logger); rerr != nil {
+				return rerr
+			}
+			return nil
 		}
 	}
 
@@ -209,8 +239,12 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 	if errors.Is(breakerErr, gobreaker.ErrOpenState) || errors.Is(breakerErr, gobreaker.ErrTooManyRequests) {
 		errStr := breakerErr.Error()
 		_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID, LastError: &errStr})
-		logger.Info("breaker open; revert to queued", "attempt", attempt, "err", breakerErr)
-		return breakerErr
+		logger.Info("breaker open; routing to retry tier", "attempt", attempt, "err", breakerErr)
+		// Send to wait tier so we don't busy-loop the same message against an open breaker.
+		if rerr := p.routeToRetryTier(ctx, attempt, d.Body(), env, logger); rerr != nil {
+			return rerr
+		}
+		return nil // ack original delivery; the tier will redeliver on TTL expiry
 	}
 
 	var provResp *provider.SendResponse
@@ -223,9 +257,11 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 	completedAt := pgxTimestamp(now)
 
 	if callErr != nil {
-		// 7a) Record the failed attempt.
+		// 7a) Record the failed attempt. Best-effort: the retry/terminal
+		// decision below is the load-bearing state transition; this row is
+		// audit data only.
 		errStr := callErr.Error()
-		_, _ = p.q.InsertDeliveryAttempt(ctx, gen.InsertDeliveryAttemptParams{
+		if _, derr := p.q.InsertDeliveryAttempt(ctx, gen.InsertDeliveryAttemptParams{
 			NotificationID: notifID,
 			AttemptNumber:  attempt,
 			StartedAt:      pgxTimestamp(now.Add(-100 * time.Millisecond)),
@@ -233,27 +269,40 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 			Success:        false,
 			Error:          &errStr,
 			HttpStatus:     httpStatusOf(callErr),
-		})
+		}); derr != nil {
+			logger.Error("insert failed-attempt row failed", "err", derr)
+		}
 
 		// 8a) Decide retry vs terminal.
 		var se *provider.SendError
-		if errors.As(callErr, &se) && se.Kind.IsRetryable() {
+		if errors.As(callErr, &se) && se.Kind.IsRetryable() && attempt < p.maxAttempts {
 			if p.metrics != nil {
 				p.metrics.NotificationRetryTotal.WithLabelValues(p.channel, attemptLabel(attempt)).Inc()
 			}
 			_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID, LastError: &errStr})
-			logger.Info("retryable failure; reverted to queued",
+			logger.Info("retryable failure; routing to retry tier",
 				"attempt", attempt, "kind", se.Kind, "status", se.HTTPStatus)
-			return callErr // nack-requeue
+			if rerr := p.routeToRetryTier(ctx, attempt, d.Body(), env, logger); rerr != nil {
+				// Publisher failure: fall back to nack-requeue so the message isn't lost.
+				return rerr
+			}
+			return nil // ack — tier will redeliver after TTL
 		}
 
 		// Terminal — mark dead_letter, insert into dead_letters, ack-to-DLQ.
-		_, _ = p.q.MarkDeadLetter(ctx, gen.MarkDeadLetterParams{ID: notifID, LastError: &errStr})
-		_, _ = p.q.InsertDeadLetter(ctx, gen.InsertDeadLetterParams{
+		// Best-effort writes: on rare DB blip we still nack to DLQ so the
+		// message doesn't loop, but log loudly because the audit row is the
+		// operator-visible record.
+		if _, derr := p.q.MarkDeadLetter(ctx, gen.MarkDeadLetterParams{ID: notifID, LastError: &errStr}); derr != nil {
+			logger.Error("mark dead_letter failed; row stays in 'sending'", "err", derr)
+		}
+		if _, derr := p.q.InsertDeadLetter(ctx, gen.InsertDeadLetterParams{
 			NotificationID: notifID,
 			Reason:         truncate(errStr, 500),
 			Payload:        d.Body(),
-		})
+		}); derr != nil {
+			logger.Error("insert dead_letter row failed", "err", derr)
+		}
 		p.emitStatus(ctx, notifID, "dead_letter", env.CorrelationID)
 		logger.Warn("terminal failure; dead-lettered", "attempt", attempt, "err", callErr)
 		return queue.ErrTerminal
@@ -263,7 +312,7 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 	provMsgID := provResp.MessageID
 	httpStatus := int32(provResp.HTTPStatus)
 	respBodyStr := string(provResp.RawBody)
-	_, _ = p.q.InsertDeliveryAttempt(ctx, gen.InsertDeliveryAttemptParams{
+	if _, derr := p.q.InsertDeliveryAttempt(ctx, gen.InsertDeliveryAttemptParams{
 		NotificationID:    notifID,
 		AttemptNumber:     attempt,
 		StartedAt:         pgxTimestamp(now.Add(-100 * time.Millisecond)),
@@ -272,11 +321,24 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 		ProviderMessageID: &provMsgID,
 		HttpStatus:        &httpStatus,
 		ResponseBody:      &respBodyStr,
-	})
+	}); derr != nil {
+		// Loss of the attempt audit row is unfortunate but not corrupting —
+		// the row will still flip to 'sent' below. Log and continue.
+		logger.Error("insert delivery attempt failed; continuing to mark sent", "err", derr)
+	}
 
 	if _, err := p.q.MarkSent(ctx, notifID); err != nil {
-		// Logged but acked — DB hiccup; the row stays in 'sending' and the sweeper picks it up.
-		logger.Error("mark sent failed; ack regardless", "err", err)
+		// MarkSent is the user-visible state transition. If it fails the row
+		// stays 'sending' — return an error so AMQP redelivers. RevertToQueued
+		// first so the next pickup's CAS (pending|queued → sending) matches.
+		// The provider call already succeeded; this only re-runs the DB writes.
+		// Worst case: a duplicate provider call on retry if the in-flight lock
+		// has expired. The provider call's own idempotency (or our 60s lock)
+		// catches that.
+		logger.Error("mark sent failed; reverting to queued and requeueing", "err", err)
+		errStr := err.Error()
+		_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID, LastError: &errStr})
+		return fmt.Errorf("mark sent: %w", err)
 	}
 	p.emitStatus(ctx, notifID, "sent", env.CorrelationID)
 	logger.Info("delivered", "attempt", attempt, "provider_message_id", provMsgID, "status", httpStatus)
@@ -323,6 +385,56 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n]
+}
+
+// routeToRetryTier publishes the envelope to a wait-tier queue (5s/30s/5m)
+// based on the just-failed attempt count. The wait queue's x-dead-letter-exchange
+// points back at the main exchange, so on TTL expiry RabbitMQ re-routes the
+// message to the channel queue with its original routing key.
+//
+// The caller is responsible for the CAS revert before calling this so the row
+// is in `queued` state for the next attempt; the worker pipeline does that
+// just above each call site.
+//
+// On publisher error, returns the error so the caller can fall back to
+// nack-requeue (current at-least-once contract — the message will be
+// redelivered immediately, exactly the prior behavior; not worse).
+func (p *Pipeline) routeToRetryTier(ctx context.Context, attempt int32, body []byte, env envelope, logger *slog.Logger) error {
+	if p.queuePub == nil {
+		logger.Warn("no queue publisher; falling back to nack-requeue")
+		return fmt.Errorf("queue publisher unavailable")
+	}
+	waitQ := queue.WaitQueueForAttempt(attempt)
+	err := p.queuePub.PublishToWaitQueue(ctx, waitQ, queue.PublishMessage{
+		RoutingKey: queue.RoutingKey(env.Channel),
+		Payload:    body,
+		Priority:   priorityToAMQP(env.Priority),
+		Headers: map[string]any{
+			"correlation_id":  env.CorrelationID,
+			"notification_id": env.NotificationID,
+			"attempt":         attempt,
+		},
+	})
+	if err != nil {
+		logger.Error("retry-tier publish failed; will nack-requeue",
+			"wait_queue", waitQ, "attempt", attempt, "err", err)
+		return err
+	}
+	logger.Info("queued for retry tier", "wait_queue", waitQ, "attempt", attempt)
+	return nil
+}
+
+// priorityToAMQP maps the envelope's textual priority to an AMQP byte priority.
+// The wire mapping mirrors what the publisher path uses (see internal/api).
+func priorityToAMQP(s string) uint8 {
+	switch s {
+	case "high":
+		return 9
+	case "low":
+		return 1
+	default:
+		return 5
+	}
 }
 
 // Tiny correlation-id context type — local to keep worker independent of internal/api.

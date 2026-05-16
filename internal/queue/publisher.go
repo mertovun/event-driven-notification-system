@@ -129,6 +129,32 @@ func (p *Publisher) watchClose(ctx context.Context, closeCh chan *amqp.Error) {
 // Persistent (delivery_mode=2), mandatory=true so unroutable messages surface
 // instead of vanishing silently.
 func (p *Publisher) Publish(ctx context.Context, m PublishMessage) error {
+	return p.publish(ctx, ExchangeMain, m.RoutingKey, true, m)
+}
+
+// PublishToWaitQueue publishes directly to one of the TTL retry-tier queues
+// (notifications.wait.5s/30s/5m) via the default exchange. The retry queue's
+// x-dead-letter-exchange routes the message back to ExchangeMain on TTL
+// expiry — RabbitMQ preserves the original routing key in the x-death header
+// and reuses it, so the message lands on the channel queue exactly as if it
+// had been freshly published. The original routing key is also encoded in the
+// headers under "x-original-routing-key" for handlers that want to inspect it.
+//
+// mandatory=false: the wait queue is the only valid destination and we want
+// the publish to fail fast if topology is misconfigured rather than spin.
+func (p *Publisher) PublishToWaitQueue(ctx context.Context, waitQueue string, m PublishMessage) error {
+	// Tag the wait-bound publish so headers carry the original routing key —
+	// useful for debugging, not load-bearing (the broker re-routes via x-death).
+	if m.Headers == nil {
+		m.Headers = make(map[string]any, 1)
+	}
+	if _, ok := m.Headers["x-original-routing-key"]; !ok {
+		m.Headers["x-original-routing-key"] = m.RoutingKey
+	}
+	return p.publish(ctx, "", waitQueue, false, m)
+}
+
+func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, mandatory bool, m PublishMessage) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.channel == nil {
@@ -145,9 +171,9 @@ func (p *Publisher) Publish(ctx context.Context, m PublishMessage) error {
 
 	conf, err := p.channel.PublishWithDeferredConfirmWithContext(
 		publishCtx,
-		ExchangeMain,
-		m.RoutingKey,
-		true,  // mandatory
+		exchange,
+		routingKey,
+		mandatory,
 		false, // immediate
 		amqp.Publishing{
 			ContentType:  "application/json",
