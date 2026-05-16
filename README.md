@@ -63,9 +63,8 @@ curl http://localhost:8090/metrics | grep notifications_
                                   ▼                                    │
                               [Provider: webhook.site]                 │
                                                                        │
-                              [Scheduler dispatcher] (off by default) ──┘
-                                  SCHEDULER_ENABLED=true to opt in;
-                                  see KNOWN_ISSUES.md for the pgx wedge
+                              [Scheduler dispatcher] (1Hz) ────────────┘
+                                  scheduled_notifications.due_at <= now()
 
    Cross-cutting: slog JSON (PII-redacting), Prometheus /metrics, OpenTelemetry OTLP/gRPC
 ```
@@ -180,12 +179,6 @@ Full spec: [`internal/api/openapi.yaml`](internal/api/openapi.yaml).
 - **WebSocket fan-out across replicas.** Each replica subscribes to Redis Pub/Sub independently, so per-key connection caps are per-replica. A fleet-wide cap would need a shared registry (Redis).
 - **DLQ-drain consumer.** Workers write to `dead_letters` Postgres table directly on terminal failure; there's no consumer draining the RabbitMQ DLQ queues into Postgres. Documented because if a message goes to the DLQ via DLX (TTL or explicit nack), it sits there until manually inspected.
 - **i18n templates.** Single locale. Would need `(name, channel, locale, version)` uniqueness.
-
-### Known issue
-
-[`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) documents one reproducible bug: scheduled notifications can hang a worker on its first DB call after the scheduler dispatcher fires. Root-caused to a pgx v5 internal state corruption (bgreader `Running` status with no goroutine). Pool isolation experiment didn't help. All other features work end-to-end.
-
----
 
 ## Operational notes
 
@@ -304,7 +297,6 @@ Latest measured numbers on a clean stack (single replica, macOS arm64, Docker De
 ├── Dockerfile               # multi-stage, distroless final
 ├── Makefile                 # make help to list targets
 ├── sqlc.yaml
-├── KNOWN_ISSUES.md
 └── README.md
 ```
 

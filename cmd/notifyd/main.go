@@ -214,15 +214,12 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		cfgD.BatchSize = cfg.OutboxBatchSize
 		disp = outbox.New(pool, q, pub, metrics, logger, cfgD)
 
-		// Scheduled-notification poller — feature-flagged off by default
-		// because the pgx v5 bgreader wedge documented in KNOWN_ISSUES.md
-		// will hang the first worker that picks up a scheduled message.
-		// Operators opt in via SCHEDULER_ENABLED=true once they have a
-		// mitigation in place (or after the pgx fix lands).
+		// Scheduled-notification poller. Can be disabled via
+		// SCHEDULER_ENABLED=false if an operator wants to run a deployment
+		// that only delivers immediate notifications.
 		if cfg.SchedulerEnabled {
 			schedID, _ := uuid.NewV7()
 			schedDsp = scheduler.New(pool, q, logger, scheduler.Default(schedID.String()))
-			logger.Warn("scheduler enabled despite KNOWN_ISSUES.md pgx wedge — accept the risk")
 		} else {
 			logger.Info("scheduler disabled (SCHEDULER_ENABLED=false); scheduled_at notifications will stay in 'scheduled' status")
 		}

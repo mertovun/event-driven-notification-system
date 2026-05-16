@@ -4,25 +4,21 @@
 --          ('pending','queued','cancelled','scheduled'))
 --
 -- It prohibited rows from ever reaching 'sending', 'sent', 'failed', or
--- 'dead_letter' if scheduled_at was non-NULL. The intent was probably
--- "scheduled_at only applies pre-send," but a row that was scheduled
--- should keep its scheduled_at for audit/history after delivery —
--- otherwise we lose the "when was this supposed to go out?" data.
+-- 'dead_letter' if scheduled_at was non-NULL. The intent was "scheduled_at
+-- only applies pre-send," but rows that were scheduled should keep their
+-- scheduled_at for audit/history after delivery — otherwise we lose the
+-- "when was this supposed to go out?" data.
 --
--- This was the actual root cause of the long-documented "scheduler
--- wedge" in KNOWN_ISSUES.md: when the worker tried MarkSendingCAS
--- (queued → sending), the constraint fired with
+-- More importantly, the constraint fired on every UPDATE that transitioned
+-- a scheduled row past pre-send. When the worker tried MarkSendingCAS
+-- (queued → sending) on a scheduled-then-due row, the constraint raised
 --   "violates check constraint notifications_scheduled_status_consistent"
--- and the error propagated up — depending on app version, this surfaced
--- as either a goroutine hang (older bgreader retry behaviour on a failed
--- query) or a clean error (current build). The diagnosis in
--- KNOWN_ISSUES.md mis-attributed the hang to pgx; the actual fix is at
--- the schema layer.
+-- and the error propagated up the worker pipeline. Without the safety-net
+-- error log at the boundary (added in the silent-hot-loop fix), this
+-- surfaced as an apparent worker hang.
 --
--- We replace the constraint with one that only enforces what it should:
--- "don't set scheduled_at to a non-null value when the row is already in
--- a terminal state". The constraint trigger is on UPDATE only since
--- INSERT-time validation lives in the API layer.
+-- Drop the constraint. The API validator already rejects scheduled_at on
+-- terminal-state rows at create time; the constraint wasn't load-bearing.
 
 ALTER TABLE notifications
     DROP CONSTRAINT IF EXISTS notifications_scheduled_status_consistent;

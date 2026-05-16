@@ -104,9 +104,9 @@ func New(
 
 // handleTimeout bounds the worst-case wall-clock duration of one delivery.
 // Sized to cover: rate-limit short wait (≤200ms) + provider HTTP (10s ceiling
-// in provider.Client) + DB round-trips. Anything beyond this is a wedge
-// (e.g. the pgx bgreader case from KNOWN_ISSUES.md), and we want the consumer
-// loop to unblock so the message can be redelivered to a healthy worker.
+// in provider.Client) + DB round-trips. Anything beyond this is a wedge in
+// an unbounded blocking call, and we want the consumer loop to unblock so
+// the message can be redelivered to a healthy worker.
 const handleTimeout = 30 * time.Second
 
 // Handle is the queue.Handler for one delivery.
