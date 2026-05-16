@@ -29,7 +29,12 @@ services:
     tmpfs:
       - /tmp:size=64m,mode=1777
     restart: unless-stopped
-    # TODO: add a `notifyd healthcheck` subcommand and wire HEALTHCHECK here.
+    healthcheck:
+      test: ["CMD", "/notifyd", "healthcheck"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
   postgres:
     image: postgres:16-alpine

@@ -61,7 +61,9 @@ tidy: ## Run go mod tidy
 	@go mod tidy
 
 up: ## Start the full stack (postgres, rabbitmq, redis, app)
-	@$(COMPOSE) up -d --build
+	@BUILD_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+		COMMIT=$$(git rev-parse --short=12 HEAD 2>/dev/null || echo local) \
+		$(COMPOSE) up -d --build
 	@echo "→ http://localhost:$${APP_HOST_PORT:-8090}/livez"
 
 down: ## Stop the stack

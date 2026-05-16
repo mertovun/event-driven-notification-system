@@ -46,6 +46,14 @@ var (
 )
 
 func main() {
+	// Subcommands run before the long-form flag parsing because they need
+	// different argument handling. The distroless final image has no shell
+	// or curl, so `notifyd healthcheck` provides a probe that an orchestrator
+	// can invoke directly (Docker HEALTHCHECK, k8s liveness exec).
+	if len(os.Args) >= 2 && os.Args[1] == "healthcheck" {
+		os.Exit(runHealthcheck(os.Args[2:]))
+	}
+
 	modeFlag := flag.String("mode", "", "run mode: api | worker | all (overrides MODE env)")
 	addrFlag := flag.String("addr", "", "HTTP listen address (overrides HTTP_ADDR env)")
 	skipMigrate := flag.Bool("skip-migrate", false, "skip running migrations on boot")
@@ -290,4 +298,32 @@ func parseLogLevel(s string) slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+// runHealthcheck issues a single GET against /livez on the loopback HTTP
+// listener and exits 0 if the response is 200, non-zero otherwise.
+//
+// Designed for use as a Docker HEALTHCHECK in the distroless final image
+// (no shell, no curl available). Inside the container the listener is on
+// the container-internal port, which is the HTTP_ADDR config; we default
+// to ":8080" to match the listener in newHTTPServer.
+//
+// Override with the first positional arg, e.g. `notifyd healthcheck http://127.0.0.1:9000/livez`.
+func runHealthcheck(args []string) int {
+	url := "http://127.0.0.1:8080/livez"
+	if len(args) > 0 && args[0] != "" {
+		url = args[0]
+	}
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "healthcheck: %v\n", err)
+		return 1
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "healthcheck: status=%d\n", resp.StatusCode)
+		return 1
+	}
+	return 0
 }

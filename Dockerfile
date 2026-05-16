@@ -46,4 +46,9 @@ USER nonroot:nonroot
 
 EXPOSE 8080
 
+# Distroless has no shell or curl, so the binary's own `healthcheck`
+# subcommand performs a self-test by calling /livez over loopback.
+HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
+    CMD ["/notifyd", "healthcheck"]
+
 ENTRYPOINT ["/notifyd"]
