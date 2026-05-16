@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -21,27 +22,51 @@ type PublishMessage struct {
 	Priority   uint8
 }
 
-// Publisher owns the AMQP connection + a channel pool for publishing with confirms.
-// One Publisher per process. Safe for concurrent use.
-type Publisher struct {
-	url    string
-	logger *slog.Logger
+// pubChannel wraps an AMQP channel with its own per-channel mutex. The
+// publisher fans out across N of these so confirm RTTs run in parallel
+// instead of serializing behind one process-wide lock — the previous
+// design capped throughput at ~200/s at a 5ms broker RTT (Architecture,
+// Go, SRE reviewers all flagged it independently).
+type pubChannel struct {
+	ch *amqp.Channel
+	mu sync.Mutex
+}
 
-	mu      sync.Mutex
-	conn    *amqp.Connection
-	channel *amqp.Channel // single confirm-enabled channel; serialized via mu
+// DefaultChannelPoolSize is the number of confirm-enabled channels per
+// publisher process. Sized so confirm RTTs don't stack up on any one
+// channel under typical (1k-10k msg/s) load — past 8 the contention
+// returns are diminishing because we share one TCP connection.
+const DefaultChannelPoolSize = 8
+
+// Publisher owns one AMQP connection + N confirm-enabled channels. One
+// Publisher per process; safe for concurrent use.
+type Publisher struct {
+	url      string
+	logger   *slog.Logger
+	poolSize int
+
+	// connMu guards conn + chans during dial/reconnect. Hot-path publishes
+	// don't take this lock — they take the per-channel mu inside pubChannel.
+	connMu sync.RWMutex
+	conn   *amqp.Connection
+	chans  []*pubChannel
+
+	// roundRobin counter for channel selection. Unsigned wrap-around is
+	// intentional; modulo poolSize handles the boundary.
+	roundRobin atomic.Uint64
 
 	closeOnce sync.Once
 	stopped   chan struct{}
 }
 
-// NewPublisher dials AMQP, declares the topology, and arms publisher confirms.
-// The caller must Close() on shutdown.
+// NewPublisher dials AMQP, declares the topology, and arms publisher confirms
+// on DefaultChannelPoolSize channels.
 func NewPublisher(ctx context.Context, url string, logger *slog.Logger) (*Publisher, error) {
 	p := &Publisher{
-		url:     url,
-		logger:  logger,
-		stopped: make(chan struct{}),
+		url:      url,
+		logger:   logger,
+		poolSize: DefaultChannelPoolSize,
+		stopped:  make(chan struct{}),
 	}
 	if err := p.dial(ctx); err != nil {
 		return nil, err
@@ -49,8 +74,9 @@ func NewPublisher(ctx context.Context, url string, logger *slog.Logger) (*Publis
 	return p, nil
 }
 
+// dial brings up a fresh connection + N confirm-enabled channels. Called
+// once at construction and again from watchClose on broker-side disconnect.
 func (p *Publisher) dial(ctx context.Context) error {
-	// Use DialConfig so we can pass a heartbeat appropriate for slow consumers.
 	conn, err := amqp.DialConfig(p.url, amqp.Config{
 		Heartbeat: 30 * time.Second,
 		Locale:    "en_US",
@@ -58,34 +84,66 @@ func (p *Publisher) dial(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("amqp dial: %w", err)
 	}
-	ch, err := conn.Channel()
-	if err != nil {
-		_ = conn.Close()
-		return fmt.Errorf("amqp channel: %w", err)
-	}
-	if err := DeclareTopology(ch); err != nil {
-		_ = ch.Close()
-		_ = conn.Close()
-		return fmt.Errorf("declare topology: %w", err)
-	}
-	if err := ch.Confirm(false); err != nil {
-		_ = ch.Close()
-		_ = conn.Close()
-		return fmt.Errorf("confirm.select: %w", err)
+
+	chans := make([]*pubChannel, 0, p.poolSize)
+	for i := 0; i < p.poolSize; i++ {
+		ch, err := conn.Channel()
+		if err != nil {
+			closeChans(chans)
+			_ = conn.Close()
+			return fmt.Errorf("amqp channel[%d]: %w", i, err)
+		}
+		// Declare topology on the first channel only; broker stores it
+		// globally so subsequent channels just inherit. We still confirm
+		// on every channel.
+		if i == 0 {
+			if err := DeclareTopology(ch); err != nil {
+				_ = ch.Close()
+				closeChans(chans)
+				_ = conn.Close()
+				return fmt.Errorf("declare topology: %w", err)
+			}
+		}
+		if err := ch.Confirm(false); err != nil {
+			_ = ch.Close()
+			closeChans(chans)
+			_ = conn.Close()
+			return fmt.Errorf("confirm.select on channel[%d]: %w", i, err)
+		}
+		chans = append(chans, &pubChannel{ch: ch})
 	}
 
-	p.mu.Lock()
+	p.connMu.Lock()
 	p.conn = conn
-	p.channel = ch
-	p.mu.Unlock()
+	p.chans = chans
+	p.connMu.Unlock()
 
-	// Async reconnect on NotifyClose.
 	closeCh := make(chan *amqp.Error, 1)
 	conn.NotifyClose(closeCh)
 	go p.watchClose(ctx, closeCh)
 
-	p.logger.Info("amqp publisher connected", "url-redacted", redactURL(p.url))
+	p.logger.Info("amqp publisher connected", "url-redacted", redactURL(p.url), "channels", p.poolSize)
 	return nil
+}
+
+func closeChans(chans []*pubChannel) {
+	for _, c := range chans {
+		if c != nil && c.ch != nil {
+			_ = c.ch.Close()
+		}
+	}
+}
+
+// pickChannel returns the next channel in round-robin order. Returns nil
+// when the pool is empty (between dial and a reconnect succeeding).
+func (p *Publisher) pickChannel() *pubChannel {
+	p.connMu.RLock()
+	defer p.connMu.RUnlock()
+	if len(p.chans) == 0 {
+		return nil
+	}
+	idx := p.roundRobin.Add(1) % uint64(len(p.chans))
+	return p.chans[idx]
 }
 
 func (p *Publisher) watchClose(ctx context.Context, closeCh chan *amqp.Error) {
@@ -124,27 +182,14 @@ func (p *Publisher) watchClose(ctx context.Context, closeCh chan *amqp.Error) {
 }
 
 // Publish publishes one message to ExchangeMain with the supplied routing key.
-// Blocks until the broker confirms (or 5s timeout).
-//
-// Persistent (delivery_mode=2), mandatory=true so unroutable messages surface
-// instead of vanishing silently.
+// Persistent (delivery_mode=2), mandatory=true. Confirm RTT is bounded by 5s.
 func (p *Publisher) Publish(ctx context.Context, m PublishMessage) error {
 	return p.publish(ctx, ExchangeMain, m.RoutingKey, true, m)
 }
 
 // PublishToWaitQueue publishes directly to one of the TTL retry-tier queues
-// (notifications.wait.5s/30s/5m) via the default exchange. The retry queue's
-// x-dead-letter-exchange routes the message back to ExchangeMain on TTL
-// expiry — RabbitMQ preserves the original routing key in the x-death header
-// and reuses it, so the message lands on the channel queue exactly as if it
-// had been freshly published. The original routing key is also encoded in the
-// headers under "x-original-routing-key" for handlers that want to inspect it.
-//
-// mandatory=false: the wait queue is the only valid destination and we want
-// the publish to fail fast if topology is misconfigured rather than spin.
+// via the default exchange. See PublishMessage docs in topology.go.
 func (p *Publisher) PublishToWaitQueue(ctx context.Context, waitQueue string, m PublishMessage) error {
-	// Tag the wait-bound publish so headers carry the original routing key —
-	// useful for debugging, not load-bearing (the broker re-routes via x-death).
 	if m.Headers == nil {
 		m.Headers = make(map[string]any, 1)
 	}
@@ -155,10 +200,9 @@ func (p *Publisher) PublishToWaitQueue(ctx context.Context, waitQueue string, m 
 }
 
 func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, mandatory bool, m PublishMessage) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.channel == nil {
-		return errors.New("publisher: no channel")
+	pc := p.pickChannel()
+	if pc == nil {
+		return errors.New("publisher: no channel (reconnecting?)")
 	}
 
 	publishCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -169,7 +213,12 @@ func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, ma
 		hdrs[k] = v
 	}
 
-	conf, err := p.channel.PublishWithDeferredConfirmWithContext(
+	// Per-channel mutex: serializes Publish+WaitContext on this specific
+	// channel only. Other channels in the pool run in parallel.
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+
+	conf, err := pc.ch.PublishWithDeferredConfirmWithContext(
 		publishCtx,
 		exchange,
 		routingKey,
@@ -188,7 +237,6 @@ func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, ma
 		return fmt.Errorf("publish: %w", err)
 	}
 
-	// Wait for ack/nack with the per-publish deadline.
 	acked, err := conf.WaitContext(publishCtx)
 	if err != nil {
 		return fmt.Errorf("confirm wait: %w", err)
@@ -200,19 +248,18 @@ func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, ma
 }
 
 // QueueDepth returns the broker-reported message_count for a named queue.
-// Uses QueueDeclarePassive which fails if the queue doesn't exist (so a typo
-// in the queue name is surfaced loudly). Cheap — no consume, no publish.
-//
-// The queue's x-max-priority arg is passed because RabbitMQ's passive
-// declare validates the args against the existing declaration; mismatched
-// args return a precondition_failed channel error and force a reconnect.
+// Uses QueueDeclarePassive on the first pool channel — read-only and cheap.
 func (p *Publisher) QueueDepth(queueName string) (int, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.channel == nil {
+	p.connMu.RLock()
+	chans := p.chans
+	p.connMu.RUnlock()
+	if len(chans) == 0 {
 		return 0, errors.New("publisher: no channel")
 	}
-	q, err := p.channel.QueueDeclarePassive(queueName, true, false, false, false, amqp.Table{
+	pc := chans[0]
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	q, err := pc.ch.QueueDeclarePassive(queueName, true, false, false, false, amqp.Table{
 		"x-max-priority":            maxPriority,
 		"x-dead-letter-exchange":    ExchangeDLX,
 		"x-dead-letter-routing-key": queueName[len("notifications."):] + ".dead",
@@ -223,30 +270,29 @@ func (p *Publisher) QueueDepth(queueName string) (int, error) {
 	return q.Messages, nil
 }
 
-// Ping returns nil if the AMQP connection is alive and the channel is open.
-// Lightweight: does not write to the broker.
+// Ping returns nil if the AMQP connection is alive and at least one channel
+// is open. Lightweight: does not write to the broker.
 func (p *Publisher) Ping(_ context.Context) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.connMu.RLock()
+	defer p.connMu.RUnlock()
 	if p.conn == nil || p.conn.IsClosed() {
 		return errors.New("amqp connection closed")
 	}
-	if p.channel == nil {
-		return errors.New("amqp channel nil")
+	if len(p.chans) == 0 {
+		return errors.New("amqp channels empty")
 	}
 	return nil
 }
 
-// Close shuts down the channel and connection. Idempotent.
+// Close shuts down all channels and the connection. Idempotent.
 func (p *Publisher) Close() error {
 	var err error
 	p.closeOnce.Do(func() {
 		close(p.stopped)
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		if p.channel != nil {
-			_ = p.channel.Close()
-		}
+		p.connMu.Lock()
+		defer p.connMu.Unlock()
+		closeChans(p.chans)
+		p.chans = nil
 		if p.conn != nil && !p.conn.IsClosed() {
 			err = p.conn.Close()
 		}
@@ -256,7 +302,6 @@ func (p *Publisher) Close() error {
 
 // redactURL hides any embedded credentials before logging the AMQP URL.
 func redactURL(u string) string {
-	// amqp://user:pass@host:port/ → amqp://***@host:port/
 	at := -1
 	scheme := -1
 	for i := 0; i < len(u); i++ {
