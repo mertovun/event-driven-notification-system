@@ -245,6 +245,11 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	if workMgr != nil {
 		g.Go(func() error { return workMgr.Run(gctx) })
 	}
+	// Queue-depth sampler runs alongside the publisher (worker / all modes).
+	if pub != nil {
+		sampler := queue.NewDepthSampler(pub, metrics, logger, 0)
+		g.Go(func() error { return sampler.Run(gctx) })
+	}
 	g.Go(func() error { return wsHub.Run(gctx) })
 
 	g.Go(func() error {

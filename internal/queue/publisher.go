@@ -199,6 +199,30 @@ func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, ma
 	return nil
 }
 
+// QueueDepth returns the broker-reported message_count for a named queue.
+// Uses QueueDeclarePassive which fails if the queue doesn't exist (so a typo
+// in the queue name is surfaced loudly). Cheap — no consume, no publish.
+//
+// The queue's x-max-priority arg is passed because RabbitMQ's passive
+// declare validates the args against the existing declaration; mismatched
+// args return a precondition_failed channel error and force a reconnect.
+func (p *Publisher) QueueDepth(queueName string) (int, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.channel == nil {
+		return 0, errors.New("publisher: no channel")
+	}
+	q, err := p.channel.QueueDeclarePassive(queueName, true, false, false, false, amqp.Table{
+		"x-max-priority":            maxPriority,
+		"x-dead-letter-exchange":    ExchangeDLX,
+		"x-dead-letter-routing-key": queueName[len("notifications."):] + ".dead",
+	})
+	if err != nil {
+		return 0, fmt.Errorf("queue inspect %q: %w", queueName, err)
+	}
+	return q.Messages, nil
+}
+
 // Ping returns nil if the AMQP connection is alive and the channel is open.
 // Lightweight: does not write to the broker.
 func (p *Publisher) Ping(_ context.Context) error {
