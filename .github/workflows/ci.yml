@@ -26,7 +26,18 @@ jobs:
           cache: true
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          # install-mode: goinstall builds the linter from source using the
+          # workflow's Go toolchain (1.26 via setup-go above). Otherwise the
+          # action pulls a pre-built binary that may be compiled against an
+          # older Go and refuses to load a config targeting Go 1.26:
+          #   "the Go language version used to build golangci-lint is lower
+          #    than the targeted Go version"
+          # We stay on golangci-lint v1.x so the existing .golangci.yml
+          # schema keeps working — v2 changed the config format. v8 of the
+          # action assumes the v2 module path (...lint/v2/...) and can't
+          # install v1.x via goinstall; v6 handles the legacy path correctly.
+          install-mode: goinstall
+          version: v1.64.8
           args: --timeout=5m
 
   fmt:
