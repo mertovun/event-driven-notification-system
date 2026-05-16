@@ -288,6 +288,14 @@ func (h *notificationsHandler) persist(
 		}); err != nil {
 			return notificationResponse{}, 0, fmt.Errorf("insert outbox: %w", err)
 		}
+	} else if status == notification.StatusScheduled {
+		// Sidecar row drives the scheduler poller.
+		if _, err := qtx.InsertScheduled(ctx, gen.InsertScheduledParams{
+			ID:    id,
+			DueAt: pgtype.Timestamptz{Time: *req.ScheduledAt, Valid: true},
+		}); err != nil {
+			return notificationResponse{}, 0, fmt.Errorf("insert scheduled: %w", err)
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
