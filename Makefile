@@ -1,4 +1,4 @@
-.PHONY: help install-hooks fmt vet build test test-integration lint generate vuln tidy load-test load-baseline up down logs ps
+.PHONY: help install-hooks fmt vet build test test-integration lint generate vuln tidy load-test load-baseline profile-cpu profile-heap profile-goroutine up down logs ps
 
 COMPOSE := docker compose -f deploy/docker-compose.yml --env-file .env
 
@@ -41,6 +41,21 @@ load-test: ## Run all k6 load test scenarios against the running stack
 
 load-baseline: ## Run k6 baseline scenario only
 	@k6 run loadtest/k6_baseline.js
+
+profile-cpu: ## Capture a 30s CPU profile from the running app (requires PPROF_ENABLED=true)
+	@mkdir -p loadtest/profiles
+	@curl -sS "http://localhost:$${APP_HOST_PORT:-8090}/debug/pprof/profile?seconds=30" -o loadtest/profiles/cpu.pprof
+	@echo "✓ loadtest/profiles/cpu.pprof — open with: go tool pprof -http=:6060 loadtest/profiles/cpu.pprof"
+
+profile-heap: ## Snapshot the heap profile from the running app
+	@mkdir -p loadtest/profiles
+	@curl -sS "http://localhost:$${APP_HOST_PORT:-8090}/debug/pprof/heap" -o loadtest/profiles/heap.pprof
+	@echo "✓ loadtest/profiles/heap.pprof"
+
+profile-goroutine: ## Snapshot the goroutine profile
+	@mkdir -p loadtest/profiles
+	@curl -sS "http://localhost:$${APP_HOST_PORT:-8090}/debug/pprof/goroutine?debug=2" -o loadtest/profiles/goroutine.txt
+	@echo "✓ loadtest/profiles/goroutine.txt"
 
 tidy: ## Run go mod tidy
 	@go mod tidy

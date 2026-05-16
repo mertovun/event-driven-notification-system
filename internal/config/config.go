@@ -43,6 +43,9 @@ type Config struct {
 
 	// API key for development seed (overridden in production)
 	DevAPIKey string `envconfig:"DEV_API_KEY" default:""`
+
+	// Profiling. When true, the HTTP server mounts /debug/pprof/*. Default off in prod.
+	PProfEnabled bool `envconfig:"PPROF_ENABLED" default:"false"`
 }
 
 // Load reads the Config from the environment.

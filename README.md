@@ -269,6 +269,8 @@ Latest measured numbers on a clean stack (single replica, macOS arm64, Docker De
 
 `make load-test` runs all three.
 
+**Profiling and bottleneck analysis** are in [`PERFORMANCE.md`](PERFORMANCE.md). Short version: ~96% of CPU is in argon2id key verification (by design — `t=2, m=64MB` per [ADR-0011](docs/adr/0011-argon2id-over-bcrypt.md)). Every other path is sub-1% of CPU. The pprof endpoints are mounted behind `PPROF_ENABLED=true`; `make profile-cpu` captures a 30s profile.
+
 ---
 
 ## Repository layout

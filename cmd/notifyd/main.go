@@ -204,15 +204,16 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 	}
 
 	router := api.NewRouter(api.Deps{
-		Pool:        pool,
-		Queries:     q,
-		Idempotency: idemStore,
-		Redis:       rdb,
-		AMQP:        amqpChecker(pub),
-		Metrics:     metrics,
-		WSHub:       wsHub,
-		Logger:      logger,
-		BuildInfo:   api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
+		Pool:         pool,
+		Queries:      q,
+		Idempotency:  idemStore,
+		Redis:        rdb,
+		AMQP:         amqpChecker(pub),
+		Metrics:      metrics,
+		WSHub:        wsHub,
+		Logger:       logger,
+		BuildInfo:    api.BuildInfo{Version: Version, Commit: Commit, BuildTime: BuildTime},
+		PProfEnabled: cfg.PProfEnabled,
 	})
 	tracedRouter := otelhttp.NewHandler(router, "notifyd-http",
 		otelhttp.WithFilter(func(r *http.Request) bool {

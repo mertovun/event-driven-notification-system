@@ -33,15 +33,16 @@ type AMQPHealthChecker interface {
 
 // Deps holds the dependencies handlers need. Wired in main; passed to NewRouter.
 type Deps struct {
-	Pool        *pgxpool.Pool
-	Queries     *gen.Queries
-	Idempotency *idempotency.Store
-	Redis       *redis.Client
-	AMQP        AMQPHealthChecker
-	Metrics     *observability.Metrics
-	WSHub       *ws.Hub
-	Logger      *slog.Logger
-	BuildInfo   BuildInfo
+	Pool         *pgxpool.Pool
+	Queries      *gen.Queries
+	Idempotency  *idempotency.Store
+	Redis        *redis.Client
+	AMQP         AMQPHealthChecker
+	Metrics      *observability.Metrics
+	WSHub        *ws.Hub
+	Logger       *slog.Logger
+	BuildInfo    BuildInfo
+	PProfEnabled bool
 }
 
 // NewRouter builds the Chi router with the middleware chain and operational endpoints.
@@ -67,6 +68,12 @@ func NewRouter(d Deps) http.Handler {
 	// API spec + Swagger UI — no auth so reviewers can browse without a key.
 	r.Get("/openapi.yaml", openAPIHandler)
 	r.Get("/docs", swaggerHandler)
+
+	// pprof — opt-in via PPROF_ENABLED env var. Production runs leave this off.
+	// Loopback-only is enforced by the docker-compose port binding (127.0.0.1).
+	if d.PProfEnabled {
+		mountPProf(r)
+	}
 
 	notifH := newNotificationsHandler(d, d.Idempotency)
 	tmplH := newTemplatesHandler(d)
