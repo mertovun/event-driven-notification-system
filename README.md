@@ -37,7 +37,13 @@ open http://localhost:8090/docs
 curl http://localhost:8090/metrics | grep notifications_
 ```
 
-`make test` runs the unit suite. `make test-integration` runs the integration suite (spins up real Postgres/Redis/RabbitMQ in containers).
+Run the full test suite (unit + integration) with one command:
+
+```bash
+make test test-integration
+```
+
+`make test` alone runs the unit suite. `make test-integration` runs the integration suite (spins up real Postgres/Redis/RabbitMQ in containers).
 
 ---
 
@@ -263,6 +269,8 @@ make load-test       # run all 3 k6 scenarios
 ---
 
 ## Testing
+
+Single command for the whole Go test suite: `make test test-integration`.
 
 | Layer | What | How |
 |---|---|---|
