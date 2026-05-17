@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -239,6 +240,13 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 		sweepSnd = sweeper.NewSending(pool, q, logger, sweeper.Default())
 
 		// Provider client + rate limiter + worker manager.
+		// Boot-time guard against the .env.example placeholder so a fresh
+		// clone fails loudly at startup instead of silently delivering
+		// 500s on every notification until someone digs into the worker
+		// logs.
+		if strings.Contains(cfg.WebhookURL, "REPLACE-WITH-YOUR-UUID") {
+			return fmt.Errorf("WEBHOOK_URL is the .env.example placeholder; get a UUID from https://webhook.site and update .env")
+		}
 		provClient, err := provider.New(cfg.WebhookURL, "notifyd/0.1")
 		if err != nil {
 			return fmt.Errorf("provider client: %w", err)

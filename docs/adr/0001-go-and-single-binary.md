@@ -6,14 +6,14 @@ Accepted (2026-05-16)
 
 ## Context
 
-The notification system has six distinct runtime concerns: an HTTP API, an outbox dispatcher (background poller), a scheduler dispatcher (1Hz Postgres claim), worker pools per channel, a WebSocket hub, and a DLQ-drain consumer. They share configuration, a Postgres pool, AMQP wiring, and observability. Language is fixed (Go); the open question is deployment topology — one binary or several. At assessment scope, deploy cadence and ownership boundaries do not diverge between these concerns.
+The notification system has six distinct runtime concerns: an HTTP API, an outbox dispatcher (background poller), a scheduler dispatcher (1Hz Postgres claim), worker pools per channel, a WebSocket hub, and a stuck-row sweeper (5-min reclaim of crashed-mid-send notifications). They share configuration, a Postgres pool, AMQP wiring, and observability. Language is fixed (Go); the open question is deployment topology — one binary or several. At submission scope, deploy cadence and ownership boundaries do not diverge between these concerns.
 
 ## Decision
 
 We ship a single Go binary at `cmd/notifyd/main.go`. A `--mode` flag selects which subsystems the process activates:
 
 - `--mode=api` — HTTP server + WebSocket hub
-- `--mode=worker` — outbox dispatcher + scheduler + worker pools + DLQ drain
+- `--mode=worker` — outbox dispatcher + scheduler + worker pools + stuck-row sweeper
 - `--mode=all` (default) — everything in one process
 
 Scaling is by replica count of the same image. `docker compose up` runs one `--mode=all` replica. Production would run, e.g., 2–3 replicas with `--mode=api` plus 2–3 replicas with `--mode=worker`. The composition root lives entirely in `main()`: constructors take their dependencies as arguments, no package uses `init()` for work, and wiring is dependency-injected so each mode boots only what it needs.

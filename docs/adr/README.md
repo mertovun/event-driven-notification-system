@@ -34,6 +34,10 @@ decision changes, write a new ADR that marks the old one *Superseded*.
 - [ADR-0017](0017-circuit-breaker-thresholds.md) — Circuit breaker thresholds
 - [ADR-0019](0019-per-key-row-ownership.md) — Per-key row ownership and admin scope as the bypass
 - [ADR-0020](0020-key-revocation-cache-bust.md) — Admin revocation endpoint + cache invalidation
+- [ADR-0021](0021-audit-hash-chain.md) — Audit log hash chain + content-integrity verifier
+
+### Performance
+- [ADR-0022](0022-rate-limit-reservoir-and-throttle-loop.md) — Per-worker token reservoir + bounded inline retry on throttle
 
 ## Decisions deliberately left out of ADRs
 

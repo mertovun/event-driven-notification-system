@@ -1,18 +1,24 @@
 # Performance Analysis
 
 This document captures bottleneck analysis from `pprof` profiling under
-sustained k6 load on a single-replica stack. We measured the system in **four
-phases**:
+sustained k6 load on a single-replica stack. We measured the system in
+**five phases**:
 
-1. **Baseline** — 50 RPS, original auth path. CPU was ~96% argon2id.
+1. **Baseline** — 50 RPS API ingest, original auth path. CPU was ~96% argon2id.
 2. **Cached auth** — 50 RPS after the verified-key cache landed. Same RPS,
    15× lower p99, ~57× less CPU work per request.
-3. **Saturation (pool=20)** — 500→4000 RPS ramp. Found the next ceiling:
-   **Postgres connection-pool acquire** at ~1611 RPS, exactly as predicted
-   in Tier 3.
+3. **Saturation (pool=20)** — 500→4000 RPS ingest ramp. Found the next
+   ceiling: **Postgres connection-pool acquire** at ~1611 RPS, exactly as
+   predicted in Tier 3.
 4. **Wider pool (pool=100, pg max_conns=200)** — same saturation ramp.
-   1,771 RPS sustained with 0 failures and p95=2.44 ms. CPU at ~20% of one
-   core. The system is no longer CPU- or pool-bound from the inside.
+   **1,771 RPS API ingest** sustained with 0 failures and p95=2.44 ms.
+   CPU at ~20% of one core.
+5. **Worker-stage delivery throughput** — separate from k6 ingest. The
+   brief asks for 100 msg/s/channel **delivered**, not accepted. The
+   integration test `internal/worker/throughput_test.go` injects 500
+   rows directly into the outbox and asserts ≥100 msg/s/channel through
+   the dispatcher → workers → provider stub. **Observed 123-125 msg/s
+   across 5 runs** with `calls == N` (provider called exactly once).
 
 The raw profiles are committed in [`loadtest/profiles/`](loadtest/profiles/)
 and reproducible via:
@@ -301,6 +307,104 @@ remaining time is Postgres I/O (`pgx.Conn.Query` 16% cum) and the runtime
 scheduler. The next bottleneck is no longer visible from the inside — it
 would have to be found by pushing past 4000 target RPS with a distributed
 load generator.
+
+---
+
+## Phase 5 — Worker-stage delivery throughput
+
+Phases 1-4 measured **API ingest**: `POST /v1/notifications` accepted, row
+committed to Postgres + outbox in one TX, 201 returned. That's not what
+the brief asked for. The brief says 100 msg/s/channel **delivered**.
+
+The relevant test is `internal/worker/throughput_test.go`. It injects 500
+notifications directly into the outbox (skipping the API layer to remove
+ingest from the measurement), spins up dispatcher + 8 SMS workers + the
+provider stub, and waits for `count(*) WHERE status='sent' = N`. The
+load-bearing assertion is `calls.Load() == N` — i.e. the provider was
+called exactly once per notification, no double-call, no message loss.
+The rate is a soft signal under that correctness check.
+
+### Headline finding
+
+Five consecutive runs on local Docker (Apple M-series, testcontainers
+Postgres 16 + Redis 7 + RabbitMQ 3.13):
+
+```
+500 messages in 4.043s (123.7 msg/s)
+500 messages in 4.046s (123.6 msg/s)
+500 messages in 3.995s (125.2 msg/s)
+500 messages in 3.998s (125.1 msg/s)
+500 messages in 4.046s (123.6 msg/s)
+```
+
+Test SLO is set at 100 msg/s/channel. ~20% headroom.
+
+### What got us here
+
+This number is the result of two pipeline-side fixes layered on top of
+the Phase 1-4 ingest work:
+
+1. **Per-worker token reservoir** (`internal/ratelimit/reservoir.go`).
+   8 workers per channel racing the same `ratelimit:<channel>` Lua
+   bucket each pay a full Redis RTT per `Allow()` — that floor is
+   ~30 msg/s on local Docker regardless of how fast the rest of the
+   pipeline runs. The reservoir reserves a batch of 20 tokens with one
+   `AllowN` call, credits 19 locally, and only round-trips again when
+   the local pool drains. Per-channel Redis traffic drops by ~20×.
+
+2. **Bounded inline retry on throttle** (the throttle loop in
+   `pipeline.handle`). Under bursty injection 8 workers race the bucket
+   and some get denied. The original code waited once (≤200ms) and
+   routed the message to the `wait.5s` retry tier on the second
+   denial — costing 5 seconds of latency for what was a 10ms bucket
+   refill. Instrumentation showed 561 of 1061 handler invocations were
+   wait-tier bounces. The fix loops on `reservoir.Take` with the
+   bucket's `RetryAfter` as the sleep, up to a 5-second total budget;
+   only `RetryAfter > 1s` (sustained provider-side throttle) routes
+   to `wait.5s`. Post-fix: 500 handler invocations for 500 unique
+   notifications. Zero wait-tier routes.
+
+### Reservoir over-rate window
+
+Per-worker local credit means workers can briefly hold tokens that the
+shared bucket has already decremented. Hard upper bound at burst:
+
+```
+capacity + (workers × (BatchSize - 1)) + (rate × clock_skew_seconds)
+```
+
+With capacity=100, BatchSize=20, 8 workers, NTP-disciplined clock skew
+at ~1s, the worst-case burst is ~252 requests in a single second after
+a quiet period. The provider's own rate limit absorbs this in practice;
+for a provider that hard-rejects above 100.01/s, drop BatchSize to 1
+(disables the reservoir's batching) and accept the ~30 msg/s ceiling.
+
+### Load-bearing correctness
+
+`calls.Load() == N` is the test that protects against regression. The
+worker-side dedupe stack — `MarkSendingCAS` (queued → sending) + SETNX
+inflight lock + idempotent provider call — ensures exactly-once provider
+contact under at-least-once AMQP redelivery. Before the throttle-loop
+fix, the same test would still pass `calls == N` even though the rate
+collapsed to ~30 msg/s. The rate is a soft signal; correctness is the
+hard one. Both now pass on the SLO.
+
+### What we did NOT measure here
+
+- **Multi-replica deliver-side scale-out.** A two-replica run would
+  re-introduce per-bucket contention through the reservoir's
+  refill-RTT path; the bucket is still the single source of truth, so
+  the cap stays at 100/s/channel, but the per-replica achieved rate
+  would drop until the reservoirs reach steady state.
+- **A 1-hour soak.** This is a 4-second test. The over-rate burst
+  formula is a model, not a measurement; sustained drift across hours
+  would need a different test.
+- **Real-provider RTT.** The mock provider returns 202 in
+  sub-millisecond time. A real Twilio/SES RTT in the 50-200ms range
+  would push the per-channel ceiling down to `8 workers /
+  provider_RTT_seconds` ≈ 40-160 msg/s. The reservoir + throttle-loop
+  improvements are independent of this; they remove the rate-limit
+  ceiling, leaving the provider RTT as the new floor.
 
 ---
 

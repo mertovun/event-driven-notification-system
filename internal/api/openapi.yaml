@@ -422,7 +422,16 @@ components:
         recipient: { type: string, minLength: 1, maxLength: 512 }
         content: { type: string, minLength: 1 }
         priority: { $ref: '#/components/schemas/Priority' }
-        scheduled_at: { type: string, format: date-time, nullable: true }
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Optional. When set, the notification is held in `scheduled`
+            status until `scheduled_at <= now()` and then transitioned
+            to `pending` by the scheduler dispatcher. Must be in the
+            future and at most 30 days from now — values past the cap
+            return 400. Past values also return 400.
 
     NotificationCreateTemplated:
       type: object

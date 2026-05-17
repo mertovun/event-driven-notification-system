@@ -12,7 +12,12 @@ Single binary. One `docker compose up` and the entire stack is running.
 git clone https://github.com/mertovun/event-driven-notification-system
 cd event-driven-notification-system
 cp .env.example .env
-# Edit .env if you want — defaults work for local dev.
+
+# REQUIRED: visit https://webhook.site (no signup), copy your unique
+# URL, and paste it into .env as WEBHOOK_URL=. The app refuses to start
+# with the placeholder so you'll see the error immediately if you skip
+# this step.
+
 make up
 ```
 
@@ -48,7 +53,7 @@ curl http://localhost:8090/metrics | grep notifications_
                    Redis ─── Pub/Sub ─── WS hub ─── client (status push)
                                                                       │
                                        ┌──────────────────────────────┘
-                                       │ (1Hz claim)
+                                       │ (250ms claim, batch 50)
                                        ▼
                               [Outbox dispatcher] ─── confirms ───→ RabbitMQ
                                                         │              │
@@ -109,6 +114,7 @@ POST /v1/notifications
 # Headers: Idempotency-Key (optional), X-Request-Id (optional)
 # Body: { channel, recipient, content, priority?, scheduled_at? }
 #   OR: { channel, recipient, template_id, variables, priority?, scheduled_at? }
+# Note: scheduled_at must be in the future and at most 30 days out (400 otherwise).
 
 # Batch (up to 1000)
 POST /v1/notifications/batch
@@ -142,6 +148,9 @@ GET    /v1/admin/dead-letters
 GET    /v1/admin/dead-letters/{id}
 POST   /v1/admin/dead-letters/{id}/replay   # resets to pending, fresh outbox row, audit log
 DELETE /v1/admin/dead-letters/{id}          # purge with audit log
+
+POST   /v1/admin/api-keys/{id}/revoke       # revoke + Redis cache-bust
+GET    /v1/admin/audit/verify               # on-demand admin_audit hash-chain check
 ```
 
 ### Real-time
@@ -149,10 +158,10 @@ DELETE /v1/admin/dead-letters/{id}          # purge with audit log
 ```bash
 GET /v1/ws/notifications?filter=channel:sms,batch_id:<uuid>
 # WebSocket connection; receives JSON status events
-# { notification_id, channel, status, at, correlation_id }
+# { notification_id, batch_id?, channel, status, at, correlation_id, created_by? }
 ```
 
-PII (recipient, content) is **never** sent over the WebSocket. Heartbeat: 30s ping, 10s pong deadline. Per-connection 256-message buffer with slow-consumer eviction.
+PII (recipient, content) is **never** sent over the WebSocket. `created_by` carries the api_key_id that owns the underlying notification; the hub uses it server-side to gate each event to its owner so a `notifications:read` key cannot observe other tenants' status timelines. Admin-scope subscribers bypass the owner filter. Heartbeat: 30s ping, 10s pong deadline. Per-connection 256-message buffer with slow-consumer eviction.
 
 ### Operational
 
@@ -184,17 +193,30 @@ Full spec: [`internal/api/openapi.yaml`](internal/api/openapi.yaml).
 
 ### Scaling workers
 
-`WORKER_COUNT_SMS`, `WORKER_COUNT_EMAIL`, `WORKER_COUNT_PUSH` env vars (default 8 each). Each worker holds one AMQP consumer at `prefetch=1` so priority queues are honoured per-message. Default config delivers ~50 msg/s per channel per replica.
+`WORKER_COUNT_SMS`, `WORKER_COUNT_EMAIL`, `WORKER_COUNT_PUSH` env vars (default 8 each). Each worker holds one AMQP consumer at `prefetch=1` so priority queues are honoured per-message. Default config delivers ~120 msg/s per channel per replica on local Docker (`internal/worker/throughput_test.go`).
 
 ### Rate limiting
 
-100 msg/s per channel, atomic Redis token bucket via Lua. Multi-replica correct. Worker on throttle: sleeps up to 200ms in-place; if still throttled, nacks to retry tier so the AMQP prefetch slot stays flowing.
+100 msg/s per channel, atomic Redis token bucket via Lua. Multi-replica correct.
+
+Two layers compose to keep the achieved rate at or above the configured cap:
+
+- **Per-worker token reservoir** (`internal/ratelimit/reservoir.go`). Each Pipeline reserves a batch of tokens with one `AllowN(20)` RTT to Redis, then serves the next ~19 deliveries from a local counter. Without this, 8 workers per channel each pay a full Redis RTT per `Allow()` and the achieved rate collapses to ~30 msg/s. The shared Lua bucket remains authoritative; the reservoir is a freshness optimization.
+- **Bounded inline retry on throttle**. When the bucket runs dry, the worker loops on `reservoir.Take` with the bucket's own `RetryAfter` as the sleep, up to a 5-second total budget. Only `RetryAfter > 1s` (sustained provider-side throttle) routes the message to the wait.5s retry tier — the 5s/30s/5m ladder is designed for provider outages, not bucket-refill contention.
 
 ### Retry policy
 
 - **Retryable** (network, 5xx, 408, 429, `context.DeadlineExceeded`): nack to next retry tier (`wait.5s` → `wait.30s` → `wait.5m`), TTL'd via RabbitMQ, DLX back to main queue.
 - **Terminal** (4xx other than 408/429, validation errors, attempts ≥ 10): dead-letter table + AMQP DLQ.
 - Circuit breaker per channel: opens on 5 consecutive failures or ≥50% failure rate over 20 requests. Open-state messages go to retry tier (not DLQ — breaker-open is not a per-message fault).
+
+### Stuck-row sweeper
+
+A background reclaim loop (`internal/sweeper/sending.go`) polls every 30s for notifications stuck in `status='sending'` for more than 5 minutes. The trigger is a worker that took the row via `MarkSendingCAS`, claimed the SETNX inflight lock, and then crashed before reaching `MarkSent`. The sweeper UPDATEs the row back to `queued` and writes a fresh outbox entry so the dispatcher re-publishes. Threshold is wider than the worker's 30s `handleTimeout` + 60s SETNX inflight TTL so a slow-but-live worker isn't reclaimed mid-delivery.
+
+### Audit hash chain
+
+Admin actions (DLQ replay, DLQ purge, API-key revoke) are recorded in `admin_audit` with a SHA-256 hash chain — each row's `row_hash = sha256(prev_hash || canonical(row))`. The chain is built by a Postgres `BEFORE INSERT` trigger that serializes concurrent admin INSERTs via `pg_advisory_xact_lock` (otherwise two parallel admin actions can fork the chain without any actual tampering). `VerifyAuditChain` checks both linkage (each row's `prev_hash` matches the previous row's `row_hash`) **and** content integrity (each row's `row_hash` matches the recomputed digest from its current column values). The verifier runs on a 5-minute background tick publishing `audit_chain_broken_links` to Prometheus, and is available on-demand at `GET /v1/admin/audit/verify`. See [ADR-0021](docs/adr/0021-audit-hash-chain.md) for the threat model and tamper-evident-vs-tamper-proof distinction.
 
 ### Where logs go
 

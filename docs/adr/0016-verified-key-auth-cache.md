@@ -2,10 +2,12 @@
 
 ## Status
 
-Accepted (2026-05-16). Note: [RETROSPECTIVE.md](../../RETROSPECTIVE.md)
-revisits whether argon2id was the right baseline for a 100 RPS demo at
-all — the cache is correct *given* argon2id, but the prior question
-(why argon2id?) is the more interesting one.
+Accepted (2026-05-16). Note: the cache is correct *given* argon2id; the
+prior question — whether argon2id was the right baseline for a 100 RPS
+notification demo, vs. bcrypt-cost-10 (which has comparable verify cost
+but is GPU-friendly under credential theft) — is the more interesting
+one. The cache exists because we chose argon2id; pick bcrypt-cost-10 at
+100 RPS and the cache + the per-prefix brute-force gate disappear.
 
 ## Context
 
