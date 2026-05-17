@@ -294,37 +294,54 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 		if p.metrics != nil {
 			p.metrics.RateLimitThrottledTotal.WithLabelValues(p.channel).Inc()
 		}
-		// Throttled. Briefly wait (short throttle, ≤200ms) and re-check; otherwise
-		// route to retry tier so we don't hot-loop against the sustained throttle.
-		wait := dec.RetryAfter
-		const maxInlineWait = 200 * time.Millisecond
-		if wait > maxInlineWait {
-			// No provider call happened — throttle is a flow-control event,
-			// not a delivery attempt. Skip attempt_count increment so a
-			// sustained throttle doesn't burn the retry budget.
-			_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID})
-			logger.Info("rate-limit throttle sustained; routing to retry tier", "retry_after", wait)
-			// Treat throttle like attempt 1 for tiering purposes — short wait.
-			if rerr := p.routeToRetryTier(ctx, 1, d.Body(), env, logger); rerr != nil {
-				return rerr
+		// Throttled. Two cases by RetryAfter magnitude:
+		//   - Sub-second wait (bucket-refill contention): loop inline with the
+		//     suggested RetryAfter as the sleep. Capped at totalInlineBudget so
+		//     a wedged Redis or sustained provider-throttle doesn't pin the
+		//     worker indefinitely.
+		//   - Long wait (> bucketRefillCeiling): assume sustained provider-side
+		//     rate limit; route to the wait.5s retry tier so the prefetch slot
+		//     is freed for unaffected channels.
+		//
+		// Pre-loop design routed to wait.5s after a single failed sleep-and-retry.
+		// That wasted 5 s of latency per message when 8 workers contend on the
+		// same bucket and the bucket refills at 100/s (RetryAfter ≈ 10 ms per
+		// token). The fix is patience: keep retrying inline while the
+		// bucket-refill signal says we're seconds away.
+		const (
+			bucketRefillCeiling = 1 * time.Second
+			totalInlineBudget   = 5 * time.Second
+		)
+		deadline := time.Now().Add(totalInlineBudget)
+		for {
+			wait := dec.RetryAfter
+			if wait > bucketRefillCeiling || time.Now().Add(wait).After(deadline) {
+				// Sustained throttle or budget exhausted — route to retry tier.
+				_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID})
+				logger.Info("rate-limit throttle sustained; routing to retry tier", "retry_after", wait)
+				if rerr := p.routeToRetryTier(ctx, 1, d.Body(), env, logger); rerr != nil {
+					return rerr
+				}
+				return nil
 			}
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID})
-			return ctx.Err()
-		case <-time.After(wait):
-		}
-		// Re-try once after the wait; if still throttled, sustained-path applies.
-		dec, _ = p.reservoir.Take(ctx)
-		if !dec.Allowed {
-			_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID})
-			logger.Info("rate-limit still denied after short wait; routing to retry tier")
-			if rerr := p.routeToRetryTier(ctx, 1, d.Body(), env, logger); rerr != nil {
-				return rerr
+			// Small minimum to avoid busy-spin if RetryAfter is 0 (shouldn't
+			// happen but defensive).
+			if wait < 5*time.Millisecond {
+				wait = 5 * time.Millisecond
 			}
-			return nil
+			select {
+			case <-ctx.Done():
+				_ = p.q.RevertToQueuedNoAttempt(ctx, gen.RevertToQueuedNoAttemptParams{ID: notifID})
+				return ctx.Err()
+			case <-time.After(wait):
+			}
+			dec, err = p.reservoir.Take(ctx)
+			if err != nil {
+				return fmt.Errorf("ratelimit retry: %w", err)
+			}
+			if dec.Allowed {
+				break
+			}
 		}
 	}
 
