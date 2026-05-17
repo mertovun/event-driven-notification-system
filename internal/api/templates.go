@@ -192,8 +192,9 @@ func (h *templatesHandler) put(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Owner-or-admin gate. Cross-key template mutation was a
-	// stored-template-injection vector flagged in the panel review.
+	// Owner-or-admin gate. Without it, any writer-scope key can mutate
+	// any template body, which is a stored-template-injection vector
+	// against every other key that renders the same template.
 	var row gen.Template
 	if k, ok := AuthedKeyFrom(r.Context()); ok && k.HasScope(ScopeAdmin) {
 		row, err = h.q.BumpTemplateVersion(r.Context(), gen.BumpTemplateVersionParams{

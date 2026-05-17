@@ -39,7 +39,7 @@ func TestHub_SlowConsumerEviction(t *testing.T) {
 		closed atomic.Bool
 		subID  uint64
 	)
-	id, _ := h.Register(Filter{}, func(reason string) {
+	id, _ := h.Register(Filter{AdminBypass: true}, func(reason string) {
 		// Simulate the handler's close path: call Unregister, which
 		// requires the write lock. If dispatch were still holding the
 		// read lock, this would deadlock.
@@ -85,6 +85,7 @@ func TestHub_DispatchFiltersMismatches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse filter: %v", err)
 	}
+	f.AdminBypass = true // bypass owner gate so the channel filter is the only one in play
 	_, recv := h.Register(f, func(string) {})
 
 	ev := events.StatusEvent{Channel: "sms", Status: "sent", At: time.Now()}
@@ -105,6 +106,7 @@ func TestHub_DispatchDeliversToMatchingSubscriber(t *testing.T) {
 	h := newTestHub(8)
 
 	f, _ := ParseFilter("channel:sms")
+	f.AdminBypass = true // bypass owner gate; this test exercises the channel filter
 	_, recv := h.Register(f, func(string) {})
 
 	ev := events.StatusEvent{Channel: "sms", Status: "sent", At: time.Now()}

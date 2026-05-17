@@ -24,9 +24,9 @@ type PublishMessage struct {
 
 // pubChannel wraps an AMQP channel with its own per-channel mutex. The
 // publisher fans out across N of these so confirm RTTs run in parallel
-// instead of serializing behind one process-wide lock — the previous
-// design capped throughput at ~200/s at a 5ms broker RTT (Architecture,
-// Go, SRE reviewers all flagged it independently).
+// instead of serializing behind one process-wide lock — a single shared
+// mutex around Publish+WaitContext caps throughput at ~1 / RTT (around
+// 200/s at a 5ms broker RTT) regardless of how many goroutines call in.
 type pubChannel struct {
 	ch *amqp.Channel
 	mu sync.Mutex

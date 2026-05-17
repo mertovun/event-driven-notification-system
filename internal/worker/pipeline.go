@@ -73,6 +73,14 @@ func New(
 	eventsPub *events.Publisher,
 	logger *slog.Logger,
 ) *Pipeline {
+	// Required-at-construction. The handler calls p.reservoir.Take(ctx)
+	// unconditionally; passing nil produces a panic on the first delivery
+	// (worker goroutine crashes, errgroup cancels the whole pool — no
+	// Recoverer outside the HTTP layer). Earlier shape `if limiter != nil`
+	// made the dependency look optional; it isn't.
+	if limiter == nil {
+		panic("worker.New: limiter is required (used to build the per-channel reservoir)")
+	}
 	chanLogger := logger.With("channel", channel)
 	// Rate-limit settings — 100/s per channel, capacity = 1s burst. The
 	// reservoir refills batchSize tokens per Redis RTT so 8 workers
@@ -93,14 +101,12 @@ func New(
 		logger:      chanLogger,
 		maxAttempts: 10,
 	}
-	if limiter != nil {
-		p.reservoir = ratelimit.NewReservoir(limiter, ratelimit.ReservoirConfig{
-			Key:        "ratelimit:" + channel,
-			RatePerSec: ratePerSec,
-			Capacity:   capacity,
-			BatchSize:  batchSize,
-		})
-	}
+	p.reservoir = ratelimit.NewReservoir(limiter, ratelimit.ReservoirConfig{
+		Key:        "ratelimit:" + channel,
+		RatePerSec: ratePerSec,
+		Capacity:   capacity,
+		BatchSize:  batchSize,
+	})
 	// Seed the breaker-state gauge to "closed" so dashboards don't show
 	// "no data" until the first state transition. OnStateChange only fires
 	// on transitions, not on startup.
@@ -434,7 +440,7 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 		}); derr != nil {
 			logger.Error("insert dead_letter row failed", "err", derr)
 		}
-		p.emitStatus(ctx, notifID, "dead_letter", env.CorrelationID)
+		p.emitStatus(ctx, notifID, row.BatchID, row.CreatedBy, "dead_letter", env.CorrelationID)
 		logger.Warn("terminal failure; dead-lettered", "attempt", attempt, "err", callErr)
 		return queue.ErrTerminal
 	}
@@ -471,7 +477,7 @@ func (p *Pipeline) handle(ctx context.Context, d queue.Delivery) error {
 		_ = p.q.RevertToQueued(ctx, gen.RevertToQueuedParams{ID: notifID, LastError: &errStr})
 		return fmt.Errorf("mark sent: %w", err)
 	}
-	p.emitStatus(ctx, notifID, "sent", env.CorrelationID)
+	p.emitStatus(ctx, notifID, row.BatchID, row.CreatedBy, "sent", env.CorrelationID)
 	logger.Info("delivered", "attempt", attempt, "provider_message_id", provMsgID, "status", httpStatus)
 	return nil // ack
 }
@@ -498,17 +504,31 @@ func attemptLabel(attempt int32) string {
 }
 
 // emitStatus is a fire-and-forget Redis Pub/Sub publish for WS fan-out.
-func (p *Pipeline) emitStatus(ctx context.Context, notifID uuid.UUID, status, correlationID string) {
+// batchID and createdBy travel with the event so the WS hub can apply
+// per-subscriber owner / batch filters on the receiving replica before
+// writing to the socket; without createdBy the hub would broadcast every
+// status timeline to every authenticated reader of the same channel,
+// which is a metadata side-channel even though the payload is PII-light.
+func (p *Pipeline) emitStatus(ctx context.Context, notifID uuid.UUID, batchID uuid.NullUUID, createdBy uuid.NullUUID, status, correlationID string) {
 	if p.eventsPub == nil {
 		return
 	}
-	p.eventsPub.Publish(ctx, events.StatusEvent{
+	ev := events.StatusEvent{
 		NotificationID: notifID,
 		Channel:        p.channel,
 		Status:         status,
 		At:             time.Now().UTC(),
 		CorrelationID:  correlationID,
-	})
+	}
+	if batchID.Valid {
+		bid := batchID.UUID
+		ev.BatchID = &bid
+	}
+	if createdBy.Valid {
+		cb := createdBy.UUID
+		ev.CreatedBy = &cb
+	}
+	p.eventsPub.Publish(ctx, ev)
 }
 
 func truncate(s string, n int) string {

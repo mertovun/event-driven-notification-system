@@ -16,7 +16,8 @@ type Config struct {
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
 	// Env gates production-unsafe behaviour: when != "development", the
 	// startup refuses to seed the dev API key and fails loudly. ADR-0011
-	// promised this check; the panel review noted it was missing.
+	// names this guard; a committed .env containing the dev key would
+	// otherwise silently issue a fully-scoped credential in prod.
 	Env string `envconfig:"APP_ENV" default:"development"`
 
 	// Postgres

@@ -82,14 +82,27 @@ func NewManager(
 	}
 }
 
-// Run starts all worker goroutines. Blocks until ctx is cancelled or any consumer fails.
-// Graceful shutdown: cancelling ctx stops consumers; in-flight handlers run to completion.
+// Run starts all worker goroutines. Blocks until ctx is cancelled or any
+// consumer fails.
 //
-// Dials ONE shared amqp.Connection for the whole manager and opens a channel
-// per consumer off it. Previously each consumer dialed its own TCP connection
-// — 24 connections per replica at the default pool spec — which the Architecture
-// and Go reviewers flagged. RabbitMQ's published guidance is one connection
-// per process (or per role) with N channels.
+// Shutdown semantics: cancelling ctx stops new deliveries (consumer.Run
+// returns when the broker confirms the consumer cancel) and the AMQP
+// channel is torn down via the deferred Close. In-flight handler
+// goroutines invoked from the for-select see a cancelled ctx and unwind
+// — their cleanup (inflight-lock Del, RevertToQueuedNoAttempt) runs with
+// context.Background so it survives, but the broker has not been acked
+// for those messages, so AMQP will redeliver after the heartbeat timeout.
+// That redelivery is caught downstream by the worker-side dedupe stack
+// (MarkSendingCAS + SETNX inflight lock); no message is lost. Earlier
+// docs claimed "in-flight handlers run to completion" — they don't, and
+// the at-least-once contract is what carries the safety here.
+//
+// Dials ONE shared amqp.Connection for the whole manager and opens a
+// channel per consumer off it. An earlier design dialed a fresh TCP
+// connection per worker — 24 connections per replica at the default
+// pool spec — which RabbitMQ accepts but is well past the broker's
+// per-connection overhead sweet spot. One connection + N channels is
+// the published guidance.
 func (m *Manager) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 

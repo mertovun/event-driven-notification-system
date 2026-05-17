@@ -116,10 +116,17 @@ type Querier interface {
 	SweepStuckSending(ctx context.Context, stuckSeconds int32) ([]Notification, error)
 	// Idempotent seed for the dev key: insert if absent, update if present.
 	UpsertAPIKey(ctx context.Context, arg UpsertAPIKeyParams) (ApiKey, error)
-	// Tamper-evidence check: returns the count of broken links — rows whose
-	// prev_hash doesn't equal the previous row's row_hash. Zero means the chain
-	// is intact. Any non-zero result is evidence that a row was edited or
-	// deleted after the fact. Operators page on this.
+	// Tamper-evidence check. Returns the count of broken links — rows that
+	// fail either of two checks:
+	//   1) Linkage: prev_hash must equal the previous row's row_hash.
+	//   2) Content: row_hash must equal sha256(prev_hash || canonical(row)),
+	//      where canonical() comes from the shared SQL function so trigger
+	//      and verifier compute the same bytes. Migration 0012 added this;
+	//      previously the verifier only checked (1) and an attacker who
+	//      edited a column in place without touching row_hash passed.
+	// Zero means the chain is intact. Any non-zero result is evidence that a
+	// row was edited, deleted, or had its hash columns desynchronized from
+	// its content after the fact. Operators page on this.
 	VerifyAuditChain(ctx context.Context) (int64, error)
 }
 

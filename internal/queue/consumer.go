@@ -37,9 +37,10 @@ var ErrTerminal = errors.New("terminal: route to DLQ")
 
 // ConsumerConnection wraps one shared amqp.Connection that multiple Consumers
 // share channels off. AMQP best practice is one TCP connection per process
-// (or per role) and N lightweight channels off it. The previous design dialed
-// a fresh connection per worker — 24 TCP connections per replica at the
-// default 8/channel/3-channels pool spec, three reviewers flagged it.
+// (or per role) and N lightweight channels off it. An earlier shape dialed
+// a fresh connection per worker — at the default pool spec that's 24 TCP
+// connections per replica, which the broker accepts but is the wrong
+// resource shape to take to production.
 type ConsumerConnection struct {
 	url    string
 	logger *slog.Logger

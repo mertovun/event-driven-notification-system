@@ -8,10 +8,23 @@ import (
 )
 
 // Filter restricts which status events a connection wants.
-// Empty Filter (zero value) matches everything.
+//
+// BatchID / Channel are caller-supplied via the ?filter= query string.
+//
+// OwnerID + AdminBypass are auth-derived and are the per-subscriber owner
+// gate; they mirror the per-key row-ownership pattern on the HTTP read
+// path (ADR-0019). With OwnerID set, the subscriber only sees events
+// whose StatusEvent.CreatedBy equals their key id; AdminBypass=true
+// short-circuits the gate so admin-scope readers see everything, the
+// same way the *Scoped sqlc queries fall back to unscoped for admin.
+// Without this gate any `notifications:read` subscriber could observe
+// the status timeline of every other tenant — PII-light but a metadata
+// side channel (volumes + correlation_ids).
 type Filter struct {
-	BatchID *uuid.UUID
-	Channel string // "", "sms", "email", "push"
+	BatchID     *uuid.UUID
+	Channel     string // "", "sms", "email", "push"
+	OwnerID     *uuid.UUID
+	AdminBypass bool
 }
 
 // ParseFilter parses the ?filter= query param. Grammar: comma-separated
@@ -49,8 +62,20 @@ func ParseFilter(s string) (Filter, error) {
 	return f, nil
 }
 
-// Matches reports whether an event passes the filter.
-func (f Filter) Matches(eventBatchID *uuid.UUID, eventChannel string) bool {
+// Matches reports whether an event passes the filter. eventCreatedBy
+// is the api_key_id that owns the underlying notification (StatusEvent
+// .CreatedBy); nil means the event has no recorded owner (legacy rows
+// pre-ownership migration). A nil-owned event is conservatively
+// admin-only.
+func (f Filter) Matches(eventBatchID *uuid.UUID, eventChannel string, eventCreatedBy *uuid.UUID) bool {
+	if !f.AdminBypass {
+		if f.OwnerID == nil {
+			return false
+		}
+		if eventCreatedBy == nil || *eventCreatedBy != *f.OwnerID {
+			return false
+		}
+	}
 	if f.Channel != "" && f.Channel != eventChannel {
 		return false
 	}

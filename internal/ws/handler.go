@@ -12,7 +12,23 @@ import (
 	"time"
 
 	cws "github.com/coder/websocket"
+	"github.com/google/uuid"
 )
+
+// Subject describes who is on the other end of a WebSocket connection.
+// Populated by the SubjectResolver from auth context the upstream auth
+// middleware has already verified. OwnerID is the api_key_id; AdminBypass
+// is true when the key has the admin scope so the hub's per-event owner
+// filter is short-circuited.
+type Subject struct {
+	OwnerID     *uuid.UUID
+	AdminBypass bool
+}
+
+// SubjectResolver extracts the WS subject from request context. The auth
+// middleware lives in internal/api which can't be imported here (cycle);
+// the resolver is the seam.
+type SubjectResolver func(ctx context.Context) Subject
 
 // Config tunes the upgrade handler.
 type Config struct {
@@ -32,8 +48,10 @@ func DefaultConfig() Config {
 }
 
 // Handler returns an HTTP handler that upgrades to WebSocket and bridges to the hub.
-// Auth was enforced by the upstream chi middleware; this handler trusts r.Context().
-func Handler(hub *Hub, cfg Config, logger *slog.Logger) http.HandlerFunc {
+// Auth was enforced by the upstream chi middleware; this handler trusts
+// r.Context() and uses the resolver to pull the subject identity into the
+// per-connection Filter so the owner gate is applied on every event.
+func Handler(hub *Hub, cfg Config, logger *slog.Logger, resolveSubject SubjectResolver) http.HandlerFunc {
 	allowedOrigins := loadAllowedOrigins()
 	insecureSkipVerify := len(allowedOrigins) == 0
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +61,15 @@ func Handler(hub *Hub, cfg Config, logger *slog.Logger) http.HandlerFunc {
 			http.Error(w, "bad filter: "+err.Error(), http.StatusBadRequest)
 			return
 		}
+
+		// Pin the subscriber identity to the filter so the hub can apply
+		// the per-event owner gate without re-touching auth context on
+		// every dispatch. With AdminBypass=false the gate is inclusive
+		// only of events whose CreatedBy equals our OwnerID; admin keys
+		// short-circuit the gate (ADR-0019).
+		subj := resolveSubject(r.Context())
+		filter.OwnerID = subj.OwnerID
+		filter.AdminBypass = subj.AdminBypass
 
 		// Origin check: opt-in via WS_ALLOWED_ORIGINS env var (comma-separated
 		// list of full origins like "https://app.example.com"). When the var

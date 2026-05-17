@@ -87,7 +87,7 @@ func (h *Hub) dispatch(payload []byte) {
 	var slow []*subscriber
 	h.mu.RLock()
 	for _, sub := range h.subs {
-		if !sub.filter.Matches(ev.BatchID, ev.Channel) {
+		if !sub.filter.Matches(ev.BatchID, ev.Channel, ev.CreatedBy) {
 			continue
 		}
 		select {

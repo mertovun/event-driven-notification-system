@@ -9,10 +9,11 @@ import (
 
 // Reservoir is a process-local cache of tokens reserved from a shared
 // Limiter bucket. It exists to break the "one Redis round-trip per delivery"
-// ceiling that pinned the worker stage at ~30-45 msg/s under realistic
-// contention (8 workers contending on the same `ratelimit:<channel>` key,
-// every Allow() being a Redis RTT — assessment_v3 Scope reviewer flagged
-// this as the single largest scope gap on the brief).
+// ceiling that otherwise pins the worker stage at ~30-45 msg/s under
+// realistic contention: 8 workers per channel all racing the same
+// `ratelimit:<channel>` key would each pay a full Redis RTT per Allow(),
+// which dominates the 100 msg/s/channel target the bucket is configured
+// for.
 //
 // Each Take call returns a token if one is locally cached, otherwise the
 // reservoir tries to refill BatchSize tokens from the shared bucket in

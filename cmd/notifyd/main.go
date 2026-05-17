@@ -167,9 +167,9 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 
 	// Audit hash-chain verifier — DB-only, runs in every mode. Owns the
 	// background tick that publishes audit_chain_broken_links and the
-	// VerifyOnce call wired into GET /v1/admin/audit/verify. Without this
-	// the chain trigger was tamper-evident in theory but had no caller in
-	// product code (see assessment_v3 SRE/Scope findings).
+	// VerifyOnce call wired into GET /v1/admin/audit/verify. Without a
+	// running verifier, the chain trigger is tamper-evident in theory but
+	// has no caller in product code.
 	auditVerifier := audit.NewChainVerifier(q, metrics, logger, audit.Default())
 
 	if cfg.DevAPIKey != "" {

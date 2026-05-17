@@ -134,9 +134,10 @@ func NewWithOptions(endpoint, userAgent string, opts Options) (*HTTPClient, erro
 		Timeout:   2 * time.Second,
 		KeepAlive: 30 * time.Second,
 		// SSRF defense. The configured WEBHOOK_URL is operator-supplied,
-		// not per-request user input, so the SSRF surface is small. We still wire a
-		// Control hook so reviewers see the pattern and it works defensively if the
-		// URL host ever resolves to a private/metadata range.
+		// not per-request user input, so the SSRF surface is small. We
+		// still wire a Control hook defensively so a misconfigured URL
+		// that resolves to a private or cloud-metadata range is rejected
+		// at dial time rather than silently succeeding.
 		Control: ssrfControl,
 	}
 	if opts.AllowPrivateAddresses {

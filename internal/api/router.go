@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
@@ -74,7 +75,9 @@ func NewRouter(d Deps) http.Handler {
 		r.Method(http.MethodGet, "/metrics", d.Metrics.Handler())
 	}
 
-	// API spec + Swagger UI — no auth so reviewers can browse without a key.
+	// API spec + Swagger UI — no auth so operators and integrators can
+	// browse the contract without provisioning a key. Production should
+	// either gate this behind admin scope or remove it.
 	r.Get("/openapi.yaml", openAPIHandler)
 	r.Get("/docs", swaggerHandler)
 
@@ -104,10 +107,13 @@ func NewRouter(d Deps) http.Handler {
 			n.With(RequireScope(ScopeRead)).Get("/", notifH.list)
 		})
 
-		// websocket — read scope only.
+		// websocket — read scope only. The subject resolver pulls the
+		// authed key id + admin flag out of context so the hub can apply
+		// per-event owner filtering. Mirrors the *Scoped sqlc gate on
+		// HTTP reads (ADR-0019).
 		if d.WSHub != nil {
 			api.With(RequireScope(ScopeRead)).
-				Get("/ws/notifications", ws.Handler(d.WSHub, ws.DefaultConfig(), d.Logger))
+				Get("/ws/notifications", ws.Handler(d.WSHub, ws.DefaultConfig(), d.Logger, resolveWSSubject))
 		}
 
 		// admin — all routes require the admin scope.
@@ -215,4 +221,19 @@ func versionHandler(bi BuildInfo) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(body)
 	}
+}
+
+// resolveWSSubject is the bridge from the api package's auth context to
+// the ws package's Subject. The api package can't be imported from ws
+// (cycle), so this resolver lives here and is passed in at mount time.
+func resolveWSSubject(ctx context.Context) ws.Subject {
+	k, ok := AuthedKeyFrom(ctx)
+	if !ok {
+		return ws.Subject{}
+	}
+	subj := ws.Subject{AdminBypass: k.HasScope(ScopeAdmin)}
+	if id, err := uuid.Parse(k.ID); err == nil {
+		subj.OwnerID = &id
+	}
+	return subj
 }

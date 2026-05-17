@@ -1,12 +1,19 @@
 // Package audit holds the background verifier for the admin_audit hash chain.
 //
-// The chain itself is built by a BEFORE INSERT trigger (migration 0009 +
-// migration 0011's advisory-lock fix). VerifyAuditChain (sqlc-generated) is a
-// `COUNT(*)` over the chain looking for prev_hash → row_hash mismatches; 0
-// means the chain is intact. Until this package existed, the verifier had no
-// caller in product code — the audit feature was tamper-evident in theory but
-// nobody was looking. Per assessment_v3 SRE/Scope: a verifier nobody runs is
-// theater.
+// The chain itself is built by a BEFORE INSERT trigger:
+//   - migration 0009 adds prev_hash + row_hash columns and the trigger
+//   - migration 0011 wraps the trigger body in pg_advisory_xact_lock to
+//     serialize concurrent inserts (otherwise two parallel admin actions
+//     can fork the chain without any actual tampering)
+//   - migration 0012 makes VerifyAuditChain recompute every row_hash
+//     from its contents (otherwise the verifier passes when row_hash
+//     is left intact but other columns are edited in place)
+//
+// VerifyAuditChain (sqlc-generated) is a `COUNT(*)` over the chain looking
+// for both linkage breaks (prev_hash != previous row_hash) and content
+// breaks (row_hash != sha256(prev_hash || canonical(row))). 0 means the
+// chain is intact. A trigger without a running verifier is theater — this
+// package is the verifier.
 //
 // This loop ticks every Config.Interval, runs VerifyAuditChain once, and
 // publishes the broken-link count to a Prometheus gauge plus a log line on

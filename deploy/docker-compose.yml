@@ -1,4 +1,4 @@
-# Local dev / reviewer-facing stack. NOT production-ready (plain HTTP, dev passwords).
+# Local development stack. NOT production-ready (plain HTTP, dev passwords).
 name: notif
 
 services:
