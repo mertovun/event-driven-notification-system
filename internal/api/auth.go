@@ -138,7 +138,7 @@ func AuthMiddleware(q *gen.Queries, rdb *redis.Client) func(http.Handler) http.H
 			// if the admin revoke endpoint marked this key revoked, treat the
 			// cached entry as a miss so the slow path re-queries Postgres
 			// (which will reject the now-revoked row).
-			if hit, _ := lookupAuthCache(r.Context(), rdb, raw); hit != nil {
+			if hit := lookupAuthCache(r.Context(), rdb, raw); hit != nil {
 				if !isKeyRevoked(r.Context(), rdb, hit.ID) {
 					ctx := context.WithValue(r.Context(), ctxKeyAuthedKey, *hit)
 					next.ServeHTTP(w, r.WithContext(ctx))

@@ -173,7 +173,7 @@ func writePump(ctx context.Context, conn *cws.Conn, recv <-chan []byte, cfg Conf
 }
 
 // readPump drains incoming frames (we don't expect any, but the lib requires reads).
-func readPump(ctx context.Context, conn *cws.Conn, cfg Config, logger *slog.Logger) {
+func readPump(ctx context.Context, conn *cws.Conn, _ Config, logger *slog.Logger) {
 	for {
 		_, _, err := conn.Read(ctx)
 		if err != nil {

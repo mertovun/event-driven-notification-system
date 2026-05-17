@@ -33,22 +33,24 @@ func authCacheKey(raw string) string {
 	return "auth:v1:" + hex.EncodeToString(sum[:16])
 }
 
-// lookupAuthCache returns the cached authedKey for the raw token, or (nil, nil) on miss.
-func lookupAuthCache(ctx context.Context, rdb *redis.Client, raw string) (*authedKey, error) {
+// lookupAuthCache returns the cached authedKey for the raw token, or nil on miss.
+// Errors from Redis are intentionally swallowed and surface as a miss — the
+// caller falls through to the argon2 slow path which is the source of truth.
+func lookupAuthCache(ctx context.Context, rdb *redis.Client, raw string) *authedKey {
 	if rdb == nil {
-		return nil, nil
+		return nil
 	}
 	v, err := rdb.Get(ctx, authCacheKey(raw)).Bytes()
 	if err != nil {
 		// redis.Nil is a miss, not an error worth propagating.
-		return nil, nil
+		return nil
 	}
 	var c cachedAuth
 	if err := json.Unmarshal(v, &c); err != nil {
 		// Corrupt cache entry; treat as miss. Self-heals on next verify.
-		return nil, nil
+		return nil
 	}
-	return &authedKey{ID: c.ID, Name: c.Name, Scopes: c.Scopes}, nil
+	return &authedKey{ID: c.ID, Name: c.Name, Scopes: c.Scopes}
 }
 
 // storeAuthCache writes a verified key result to Redis with authCacheTTL.
@@ -57,7 +59,7 @@ func storeAuthCache(ctx context.Context, rdb *redis.Client, raw string, k authed
 	if rdb == nil {
 		return
 	}
-	body, err := json.Marshal(cachedAuth{ID: k.ID, Name: k.Name, Scopes: k.Scopes})
+	body, err := json.Marshal(cachedAuth(k))
 	if err != nil {
 		return
 	}

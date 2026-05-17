@@ -39,7 +39,7 @@ func TestHub_SlowConsumerEviction(t *testing.T) {
 		closed atomic.Bool
 		subID  uint64
 	)
-	id, _ := h.Register(Filter{AdminBypass: true}, func(reason string) {
+	id, _ := h.Register(Filter{AdminBypass: true}, func(_ string) {
 		// Simulate the handler's close path: call Unregister, which
 		// requires the write lock. If dispatch were still holding the
 		// read lock, this would deadlock.

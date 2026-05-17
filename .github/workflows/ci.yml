@@ -18,12 +18,12 @@ env:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    # Advisory only: the linter finds real issues (gocyclo on inherently
-    # branchy handlers, gosec G115 on safe-by-construction int conversions,
-    # a handful of revive style nits), and fixing them across the codebase
-    # is its own cleanup PR. The other jobs (fmt, vet via test-unit, govulncheck)
-    # remain hard gates.
-    continue-on-error: true
+    # Hard gate. Findings the linter would otherwise raise are either fixed
+    # at source (errorlint, revive, gocritic, gosimple, unparam, noctx,
+    # indent-error-flow) or documented in .golangci.yml's exclude-rules
+    # with rationale (G115 safe-by-construction int conversions; gocyclo
+    # on intentionally branchy request handlers — pipeline.handle, run(),
+    # API create/list — pending the stage-function decomposition refactor).
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

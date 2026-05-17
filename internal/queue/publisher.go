@@ -168,12 +168,12 @@ func (p *Publisher) watchClose(ctx context.Context, closeCh chan *amqp.Error) {
 			return
 		default:
 		}
-		if err := p.dial(ctx); err == nil {
+		err := p.dial(ctx)
+		if err == nil {
 			p.logger.Info("amqp reconnected")
 			return
-		} else {
-			p.logger.Warn("amqp reconnect failed", "err", err, "next-in", backoff)
 		}
+		p.logger.Warn("amqp reconnect failed", "err", err, "next-in", backoff)
 		time.Sleep(backoff)
 		if backoff < 30*time.Second {
 			backoff *= 2

@@ -6,7 +6,6 @@ package template
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"regexp"
 	"sort"
 	texttmpl "text/template"
@@ -33,7 +32,7 @@ func Parse(body string) (*texttmpl.Template, []string, error) {
 		Option("missingkey=error"). // any undefined var → ErrRender at execute time
 		Parse(body)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: %v", ErrParse, err)
+		return nil, nil, errors.Join(ErrParse, err)
 	}
 
 	// Extract referenced variables via the regex shortcut.
@@ -58,7 +57,7 @@ func Render(body string, variables map[string]any) (string, error) {
 	}
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, variables); err != nil {
-		return "", fmt.Errorf("%w: %v", ErrRender, err)
+		return "", errors.Join(ErrRender, err)
 	}
 	return buf.String(), nil
 }

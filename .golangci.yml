@@ -66,5 +66,39 @@ issues:
         - gosec
         - errcheck
         - unparam
+    # G115 (integer overflow on int↔int32 conversions): every site in this
+    # codebase converts from one of three safe-by-construction sources —
+    # len() over a request body bounded by MaxBodyBytes middleware, an HTTP
+    # status code (200-599), or a config int explicitly capped via envconfig.
+    # None can exceed int32 in practice. The sqlc-generated *Params types
+    # use int32 for Postgres int4 columns, which is why the conversion
+    # happens at all. Per-call-site nolint comments would add noise without
+    # changing behaviour; if any of these inputs grow unbounded the right
+    # answer is an explicit bounds-check at the boundary.
+    - linters:
+        - gosec
+      text: "G115:"
+    # gocyclo on branchy handler-shaped functions. Three specific files
+    # exempted: pipeline.handle (CAS, SETNX inflight, rate-limit, throttle
+    # loop, breaker, attempt-record, retry-tier, success, dead-letter),
+    # cmd/notifyd/main.run (composes 10+ subsystems behind
+    # --mode=api|worker|all), and the API create/list handlers (decode +
+    # idempotency + validation + template-render + persist all in one
+    # request scope). The right answer for handle() is the stage-function
+    # decomposition documented as future work; the API handlers would
+    # benefit from extracting the per-stage validate+record helpers.
+    # Both refactors need their own unit-tests-per-stage first.
+    - path: internal/worker/pipeline.go
+      linters:
+        - gocyclo
+    - path: cmd/notifyd/main.go
+      linters:
+        - gocyclo
+    - path: internal/api/notifications.go
+      linters:
+        - gocyclo
+    - path: internal/api/notifications_list.go
+      linters:
+        - gocyclo
   max-same-issues: 0
   max-issues-per-linter: 0

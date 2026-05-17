@@ -91,7 +91,8 @@ func main() {
 
 	if err := run(ctx, cfg, logger, *skipMigrate); err != nil {
 		logger.Error("fatal", "err", err)
-		os.Exit(1)
+		stop()     // os.Exit below skips defers; release the signal handler explicitly so a follow-on parent process can re-install signal handlers cleanly
+		os.Exit(1) //nolint:gocritic // stop() invoked above; os.Exit is the intended fatal exit from main, not a defer-skipping bug
 	}
 }
 
@@ -186,17 +187,15 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger, skipMigrat
 			return fmt.Errorf("seed dev api key: %w", err)
 		}
 		logger.Info("dev api key seeded", "prefix", cfg.DevAPIKey[:8])
-	} else {
+	} else if cfg.Env != "development" {
 		// No DEV_API_KEY set: do an audit pass to make sure no stale dev
 		// seed lingers in the api_keys table from a previous boot. ADR-0011
 		// names this as the second half of the guard. We log a WARN rather
 		// than fail because the row may have been intentionally promoted
 		// (e.g., re-purposed by the operator) — but on-call should know.
-		if cfg.Env != "development" {
-			if found, err := api.HasDevSeedRow(ctx, q); err == nil && found {
-				logger.Warn("dev seed row present in api_keys despite DEV_API_KEY unset; consider revoking",
-					"env", cfg.Env)
-			}
+		if found, err := api.HasDevSeedRow(ctx, q); err == nil && found {
+			logger.Warn("dev seed row present in api_keys despite DEV_API_KEY unset; consider revoking",
+				"env", cfg.Env)
 		}
 	}
 
@@ -374,7 +373,12 @@ func runHealthcheck(args []string) int {
 		url = args[0]
 	}
 	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get(url)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "healthcheck: %v\n", err)
+		return 1
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "healthcheck: %v\n", err)
 		return 1
