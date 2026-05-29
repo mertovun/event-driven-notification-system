@@ -130,6 +130,12 @@ func (m *Manager) Run(ctx context.Context) error {
 			workerName := fmt.Sprintf("%s-%d", chName, i)
 			qn := qName
 			g.Go(func() error {
+				// Park until the shared connection is live. Handles the
+				// broker-down-at-startup case: without this, NewConsumer would
+				// fail on a nil connection and crash the errgroup.
+				if !cc.WaitReady(gctx) {
+					return nil // ctx cancelled before broker ever came up
+				}
 				cons, err := queue.NewConsumer(gctx, cc, qn, 1, m.logger.With("worker", workerName))
 				if err != nil {
 					return fmt.Errorf("worker %s consumer: %w", workerName, err)
@@ -138,7 +144,12 @@ func (m *Manager) Run(ctx context.Context) error {
 				m.consumers = append(m.consumers, cons)
 				m.mu.Unlock()
 				defer func() { _ = cons.Close() }()
-				return cons.Run(gctx, pipe.Handle)
+				// RunForever (not Run) so a transient RabbitMQ outage pauses
+				// and resumes this worker instead of returning an error that
+				// fails the errgroup and crashes the whole process. The shared
+				// ConsumerConnection auto-reconnects; the worker re-opens its
+				// channel and resumes once the broker is back.
+				return cons.RunForever(gctx, pipe.Handle)
 			})
 		}
 		m.logger.Info("worker pool started", "channel", chName, "count", count)

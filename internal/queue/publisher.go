@@ -13,6 +13,13 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+// ErrPublisherUnavailable signals that a publish failed because the broker
+// connection is down (no channel, or a closed-connection error), not because
+// the message itself was rejected. Callers should treat this as a transient
+// infrastructure failure — retry without counting it against any per-message
+// attempt budget — rather than a delivery failure that should dead-letter.
+var ErrPublisherUnavailable = errors.New("publisher: broker unavailable")
+
 // PublishMessage is the small input contract for Publisher.Publish.
 // payload, headers, routing_key, and priority match the columns on the outbox row.
 type PublishMessage struct {
@@ -61,6 +68,12 @@ type Publisher struct {
 
 // NewPublisher dials AMQP, declares the topology, and arms publisher confirms
 // on DefaultChannelPoolSize channels.
+//
+// If the broker is unreachable at startup, this does NOT fail — it logs a
+// warning and starts a background reconnect loop, returning a usable Publisher
+// whose hot-path publishes degrade gracefully (Publish returns "no channel")
+// until the broker comes up. This lets the process boot and serve the API even
+// when RabbitMQ is down at cold start.
 func NewPublisher(ctx context.Context, url string, logger *slog.Logger) (*Publisher, error) {
 	p := &Publisher{
 		url:      url,
@@ -69,7 +82,8 @@ func NewPublisher(ctx context.Context, url string, logger *slog.Logger) (*Publis
 		stopped:  make(chan struct{}),
 	}
 	if err := p.dial(ctx); err != nil {
-		return nil, err
+		p.logger.Warn("amqp publisher: broker unreachable at startup; will retry in background", "err", err)
+		go p.reconnectLoop(ctx)
 	}
 	return p, nil
 }
@@ -158,7 +172,14 @@ func (p *Publisher) watchClose(ctx context.Context, closeCh chan *amqp.Error) {
 		}
 		p.logger.Warn("amqp connection closed; reconnecting", "err", err)
 	}
+	p.reconnectLoop(ctx)
+}
 
+// reconnectLoop re-dials with exponential backoff (1s→30s) until success,
+// ctx cancel, or Close(). A successful dial arms a fresh watchClose for the
+// new connection, so this returns once reconnected. Shared by the startup
+// path (broker down at boot) and watchClose (broker dropped while running).
+func (p *Publisher) reconnectLoop(ctx context.Context) {
 	backoff := time.Second
 	for {
 		select {
@@ -168,13 +189,19 @@ func (p *Publisher) watchClose(ctx context.Context, closeCh chan *amqp.Error) {
 			return
 		default:
 		}
-		err := p.dial(ctx)
-		if err == nil {
+		if err := p.dial(ctx); err == nil {
 			p.logger.Info("amqp reconnected")
 			return
+		} else {
+			p.logger.Warn("amqp reconnect failed", "err", err, "next-in", backoff)
 		}
-		p.logger.Warn("amqp reconnect failed", "err", err, "next-in", backoff)
-		time.Sleep(backoff)
+		select {
+		case <-p.stopped:
+			return
+		case <-ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
 		if backoff < 30*time.Second {
 			backoff *= 2
 		}
@@ -205,7 +232,7 @@ func (p *Publisher) PublishToWait(ctx context.Context, channel, tier string, m P
 func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, mandatory bool, m PublishMessage) error {
 	pc := p.pickChannel()
 	if pc == nil {
-		return errors.New("publisher: no channel (reconnecting?)")
+		return fmt.Errorf("no channel (reconnecting?): %w", ErrPublisherUnavailable)
 	}
 
 	publishCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -237,11 +264,20 @@ func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, ma
 		},
 	)
 	if err != nil {
+		// A closed connection/channel means the broker dropped mid-publish —
+		// surface it as unavailable so callers retry without burning the
+		// message's attempt budget.
+		if errors.Is(err, amqp.ErrClosed) {
+			return fmt.Errorf("publish on closed connection: %w", ErrPublisherUnavailable)
+		}
 		return fmt.Errorf("publish: %w", err)
 	}
 
 	acked, err := conf.WaitContext(publishCtx)
 	if err != nil {
+		if errors.Is(err, amqp.ErrClosed) {
+			return fmt.Errorf("confirm on closed connection: %w", ErrPublisherUnavailable)
+		}
 		return fmt.Errorf("confirm wait: %w", err)
 	}
 	if !acked {

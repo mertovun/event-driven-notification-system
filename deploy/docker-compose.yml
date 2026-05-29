@@ -84,6 +84,19 @@ services:
       start_period: 3s
     restart: unless-stopped
 
+  # Jaeger all-in-one: OTLP receiver + trace UI. Local-only; not production.
+  # App exports to jaeger:4317 (OTLP gRPC); UI on http://localhost:16686.
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:16686:16686"   # web UI, loopback only
+    # backend: app reaches jaeger:4317. frontend: lets the UI port publish to
+    # the host (the backend network is internal:true and has no host route).
+    networks: [backend, frontend]
+    restart: unless-stopped
+
 networks:
   backend:
     internal: true        # no host route; isolates DB/queue/cache from the outside.
