@@ -145,6 +145,26 @@ func (q *Queries) MarkOutboxPublished(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const markOutboxUnpublishedRetry = `-- name: MarkOutboxUnpublishedRetry :exec
+UPDATE outbox
+SET last_error = $2, claimed_at = NULL, claimed_by = NULL
+WHERE id = $1
+`
+
+type MarkOutboxUnpublishedRetryParams struct {
+	ID        uuid.UUID `json:"id"`
+	LastError *string   `json:"last_error"`
+}
+
+// Release the claim and record the error WITHOUT advancing attempt_count.
+// Used when a publish fails because the broker is unavailable (infra outage,
+// not a delivery attempt) — counting it would dead-letter a notification that
+// never reached the broker. The next dispatcher tick reclaims and retries.
+func (q *Queries) MarkOutboxUnpublishedRetry(ctx context.Context, arg MarkOutboxUnpublishedRetryParams) error {
+	_, err := q.db.Exec(ctx, markOutboxUnpublishedRetry, arg.ID, arg.LastError)
+	return err
+}
+
 const outboxLagSeconds = `-- name: OutboxLagSeconds :one
 SELECT COALESCE(EXTRACT(EPOCH FROM (now() - MIN(created_at))), 0)::double precision AS lag_seconds
 FROM outbox

@@ -18,6 +18,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/sony/gobreaker"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/mertovun/event-driven-notification-system/internal/events"
 	"github.com/mertovun/event-driven-notification-system/internal/observability"
@@ -146,6 +148,17 @@ func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 	if hdr := d.Headers(); hdr != nil {
 		if v, ok := hdr["x-redeliveries"]; ok {
 			if n, ok := v.(int32); ok && n >= maxRedeliveries {
+				// The cap exists to break a *poison-message* hot-loop (a message
+				// that fails the same way every time). It must NOT dead-letter a
+				// healthy message that's only churning because the infrastructure
+				// is down — an open breaker or an unreachable broker. In those
+				// states the provider was never even called, so the message
+				// isn't poison; nack-requeue and let it ride out the outage.
+				if p.breaker.State() == gobreaker.StateOpen {
+					p.logger.Warn("redelivery cap hit but breaker open; requeueing (infra outage, not poison)",
+						"channel", p.channel, "redeliveries", n)
+					return fmt.Errorf("breaker open; deferring redelivery-capped message")
+				}
 				p.logger.Error("redelivery cap exceeded; dead-lettering to break the loop",
 					"channel", p.channel, "redeliveries", n, "max", maxRedeliveries)
 				if p.metrics != nil {
@@ -155,6 +168,15 @@ func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 			}
 		}
 	}
+
+	// Continue the distributed trace: the dispatcher injected a traceparent
+	// (scoped to its outbox.dispatch span) into the AMQP headers. Extract it so
+	// the worker's span is a child of the dispatch span, completing the trace
+	// API → outbox.dispatch → worker.deliver across two process boundaries
+	// (Postgres outbox row, then the AMQP message headers).
+	ctx = otel.GetTextMapPropagator().Extract(ctx, amqpHeaderCarrier(d.Headers()))
+	ctx, span := otel.Tracer("notifyd/worker").Start(ctx, "worker.deliver")
+	defer span.End()
 
 	handleCtx, cancel := context.WithTimeout(ctx, handleTimeout)
 	defer cancel()
@@ -192,6 +214,31 @@ func (p *Pipeline) Handle(ctx context.Context, d queue.Delivery) error {
 		}
 	}
 	return err
+}
+
+// amqpHeaderCarrier adapts AMQP message headers (amqp.Table, a map[string]any)
+// to OTel's TextMapCarrier so the worker can extract the traceparent the
+// dispatcher injected at publish time. Read-only extraction here, so Set is a
+// no-op and Keys is unused — but both are required to satisfy the interface.
+type amqpHeaderCarrier map[string]any
+
+var _ propagation.TextMapCarrier = (amqpHeaderCarrier)(nil)
+
+func (c amqpHeaderCarrier) Get(key string) string {
+	if v, ok := c[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+func (c amqpHeaderCarrier) Set(key, value string) { c[key] = value }
+func (c amqpHeaderCarrier) Keys() []string {
+	keys := make([]string, 0, len(c))
+	for k := range c {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 // currentRedeliveries reads the x-redeliveries header set by previous bounces
