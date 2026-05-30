@@ -1,0 +1,971 @@
+goroutine 4189 [running]:
+runtime/pprof.writeGoroutineStacks({0xffff6d72c9b0, 0x1cca5f9be8c0})
+	runtime/pprof/pprof.go:819 +0x6c
+runtime/pprof.writeGoroutine({0xffff6d72c9b0?, 0x1cca5f9be8c0?}, 0x1cca5a67a580?)
+	runtime/pprof/pprof.go:782 +0x2c
+runtime/pprof.(*Profile).WriteTo(0x182b160?, {0xffff6d72c9b0?, 0x1cca5f9be8c0?}, 0xc?)
+	runtime/pprof/pprof.go:408 +0x144
+net/http/pprof.handler.ServeHTTP({0x1cca41d1d641, 0x9}, {0xffff6d72c920, 0x1cca5f9be8c0}, 0x1cca5f5b88c0)
+	net/http/pprof/pprof.go:273 +0x414
+github.com/mertovun/event-driven-notification-system/internal/api.NewRouter.mountPProf.func7.1({0xffff6d72c920, 0x1cca5f9be8c0}, 0x1cca5f5b88c0)
+	github.com/mertovun/event-driven-notification-system/internal/api/pprof.go:29 +0x58
+net/http.HandlerFunc.ServeHTTP(0xbdd540?, {0xffff6d72c920?, 0x1cca5f9be8c0?}, 0x4?)
+	net/http/server.go:2286 +0x38
+github.com/go-chi/chi/v5.(*Mux).routeHTTP(0x1cca422ab680, {0xffff6d72c920, 0x1cca5f9be8c0}, 0x1cca5f5b88c0)
+	github.com/go-chi/chi/v5@v5.2.5/mux.go:479 +0x3c4
+net/http.HandlerFunc.ServeHTTP(0x1cca42106ec8?, {0xffff6d72c920?, 0x1cca5f9be8c0?}, 0x1cca42106ea8?)
+	net/http/server.go:2286 +0x38
+github.com/go-chi/chi/v5.(*Mux).ServeHTTP(0x1cca422ab680, {0xffff6d72c920, 0x1cca5f9be8c0}, 0x1cca5f5b88c0)
+	github.com/go-chi/chi/v5@v5.2.5/mux.go:73 +0x2ac
+github.com/go-chi/chi/v5.(*Mux).Mount.func1({0xffff6d72c920, 0x1cca5f9be8c0}, 0x1cca5f5b88c0)
+	github.com/go-chi/chi/v5@v5.2.5/mux.go:321 +0x1b4
+net/http.HandlerFunc.ServeHTTP(0xbdd540?, {0xffff6d72c920?, 0x1cca5f9be8c0?}, 0x1?)
+	net/http/server.go:2286 +0x38
+github.com/go-chi/chi/v5.(*Mux).routeHTTP(0x1cca422ab5c0, {0xffff6d72c920, 0x1cca5f9be8c0}, 0x1cca5f5b88c0)
+	github.com/go-chi/chi/v5@v5.2.5/mux.go:479 +0x3c4
+net/http.HandlerFunc.ServeHTTP(0x1cca421070e8?, {0xffff6d72c920?, 0x1cca5f9be8c0?}, 0x0?)
+	net/http/server.go:2286 +0x38
+github.com/mertovun/event-driven-notification-system/internal/api.Recoverer.func1({0xffff6d72c920?, 0x1cca5f9be8c0?}, 0x1cca42107138?)
+	github.com/mertovun/event-driven-notification-system/internal/api/middleware.go:126 +0x6c
+net/http.HandlerFunc.ServeHTTP(0xffff6d72c920?, {0xffff6d72c920?, 0x1cca5f9be8c0?}, 0x0?)
+	net/http/server.go:2286 +0x38
+github.com/mertovun/event-driven-notification-system/internal/api.NewRouter.MetricsMiddleware.func4.1({0xffff6d72c920, 0x1cca5f9be840}, 0x1cca5f5b88c0)
+	github.com/mertovun/event-driven-notification-system/internal/api/metrics_middleware.go:34 +0x240
+net/http.HandlerFunc.ServeHTTP(0xde50e0?, {0xffff6d72c920?, 0x1cca5f9be840?}, 0x0?)
+	net/http/server.go:2286 +0x38
+github.com/mertovun/event-driven-notification-system/internal/api.AccessLog.func1({0xde50e0, 0x1cca5c5a4420}, 0x1cca5f5b88c0)
+	github.com/mertovun/event-driven-notification-system/internal/api/middleware.go:90 +0x15c
+net/http.HandlerFunc.ServeHTTP(0x1cca5f5b8780?, {0xde50e0?, 0x1cca5c5a4420?}, 0xdcdf40?)
+	net/http/server.go:2286 +0x38
+github.com/mertovun/event-driven-notification-system/internal/api.NewRouter.WithLogger.func2.1({0xde50e0, 0x1cca5c5a4420}, 0x1cca5f5b8780)
+	github.com/mertovun/event-driven-notification-system/internal/api/middleware.go:59 +0x90
+net/http.HandlerFunc.ServeHTTP(0xde6df0?, {0xde50e0?, 0x1cca5c5a4420?}, 0xdd0ce8?)
+	net/http/server.go:2286 +0x38
+github.com/mertovun/event-driven-notification-system/internal/api.CorrelationID.func1({0xde50e0, 0x1cca5c5a4420}, 0x1cca5f5b8500)
+	github.com/mertovun/event-driven-notification-system/internal/api/middleware.go:44 +0x268
+net/http.HandlerFunc.ServeHTTP(0xde6df0?, {0xde50e0?, 0x1cca5c5a4420?}, 0x1821de0?)
+	net/http/server.go:2286 +0x38
+github.com/go-chi/chi/v5.(*Mux).ServeHTTP(0x1cca422ab5c0, {0xde50e0, 0x1cca5c5a4420}, 0x1cca5f5b83c0)
+	github.com/go-chi/chi/v5@v5.2.5/mux.go:90 +0x26c
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP(0x1cca41dc2100, {0xde4358, 0x1cca42498c30}, 0x1cca5f5b8280, {0xdd9ec0, 0x1cca422ab5c0})
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.61.0/handler.go:180 +0xf78
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func1.1({0xde4358?, 0x1cca42498c30?}, 0x1cca5e2320d8?)
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.61.0/handler.go:67 +0x3c
+net/http.HandlerFunc.ServeHTTP(0x0?, {0xde4358?, 0x1cca42498c30?}, 0x1cca42302b50?)
+	net/http/server.go:2286 +0x38
+net/http.serverHandler.ServeHTTP({0x1cca5f9be680?}, {0xde4358?, 0x1cca42498c30?}, 0x1?)
+	net/http/server.go:3311 +0xb0
+net/http.(*conn).serve(0x1cca41ef47e0, {0xde6df0, 0x1cca4218e450})
+	net/http/server.go:2073 +0x51c
+created by net/http.(*Server).Serve in goroutine 141
+	net/http/server.go:3464 +0x37c
+
+goroutine 1 [sync.WaitGroup.Wait, 2 minutes]:
+sync.runtime_SemacquireWaitGroup(0x1cca41a701e0?, 0x0?)
+	runtime/sema.go:114 +0x38
+sync.(*WaitGroup).Wait(0x1cca422bbc48)
+	sync/waitgroup.go:206 +0xa8
+golang.org/x/sync/errgroup.(*Group).Wait(0x1cca422bbc40)
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x28
+main.run({0xde7070, 0x1cca41d2c600}, {{0x1cca41a7e00d, 0x3}, {0x1cca41a7e01a, 0x5}, {0x1cca41a7e02a, 0x4}, {0xaed661, 0xb}, ...}, ...)
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:324 +0x19f8
+main.main()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:92 +0x68c
+
+goroutine 22 [syscall, 2 minutes]:
+os/signal.signal_recv()
+	runtime/sigqueue.go:152 +0x114
+os/signal.loop()
+	os/signal/signal_unix.go:23 +0x1c
+created by os/signal.Notify.func1.1 in goroutine 1
+	os/signal/signal.go:152 +0x28
+
+goroutine 5 [select, 2 minutes]:
+os/signal.NotifyContext.func1()
+	os/signal/signal.go:292 +0x74
+created by os/signal.NotifyContext in goroutine 1
+	os/signal/signal.go:291 +0x134
+
+goroutine 12 [select]:
+github.com/jackc/pgx/v5/pgxpool.(*Pool).backgroundHealthCheck(0x1cca41b341c0)
+	github.com/jackc/pgx/v5@v5.9.2/pgxpool/pool.go:495 +0xa0
+github.com/jackc/pgx/v5/pgxpool.NewWithConfig.func5()
+	github.com/jackc/pgx/v5@v5.9.2/pgxpool/pool.go:338 +0x3c
+created by github.com/jackc/pgx/v5/pgxpool.NewWithConfig in goroutine 1
+	github.com/jackc/pgx/v5@v5.9.2/pgxpool/pool.go:335 +0x3dc
+
+goroutine 132 [IO wait]:
+internal/poll.runtime_pollWait(0xffff6d98c200, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x1cca41f1a300?, 0x1cca41a9e000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x1cca41f1a300, {0x1cca41a9e000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x1cca41f1a300, {0x1cca41a9e000?, 0xbc2f00?, 0x1cca41b7a1e0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x1cca41f0a048, {0x1cca41a9e000?, 0x1cca41a83f80?, 0xde8198?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x1cca4220a000, {0x1cca5a89cdc1, 0x7, 0x9f52b8?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdd9380, 0x1cca4220a000}, {0x1cca5a89cdc1, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x1cca41a83f18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x1cca41aac160, {0xdda500, 0x1cca41f0a048?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 1
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 120 [select]:
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xde5570, 0x1cca41ca0360}, 0x1cca41dfc960, {0x1cca42152430, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:374 +0xa30
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xde5570, 0x1cca41ca0360}, 0x1cca41dfc960, {0x1cca42152430, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:173 +0x4a0
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4218ee10, {0xde6e28, 0x1cca4229c870}, 0x1cca42069f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:182 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 121 [select]:
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xde5570, 0x1cca41ca0480}, 0x1cca42141170, {0x1cca70529710, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:374 +0xa30
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xde5570, 0x1cca41ca0480}, 0x1cca42141170, {0x1cca70529710, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:173 +0x4a0
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4218eff0, {0xde6e28, 0x1cca4229c870}, 0x1cca42359f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:182 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 179 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 117
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 133 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Publisher).watchClose(0x1cca41f1a100, {0xde7070, 0x1cca41d2c600}, 0x1cca41f0caf0)
+	github.com/mertovun/event-driven-notification-system/internal/queue/publisher.go:150 +0x8c
+created by github.com/mertovun/event-driven-notification-system/internal/queue.(*Publisher).dial in goroutine 1
+	github.com/mertovun/event-driven-notification-system/internal/queue/publisher.go:123 +0x360
+
+goroutine 180 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 123
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 177 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4221fad0, 0x1cca41d349a0, 0x1cca41d34930)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 172
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 181 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218f230, 0x1cca41d34e00, 0x1cca41d34d90)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 124
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 178 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca41c967e0, 0x1cca41d34a80, 0x1cca41d34a10)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 117
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 99 [chan receive, 2 minutes]:
+google.golang.org/grpc/internal/grpcsync.(*CallbackSerializer).run(0x1cca4223c150, {0xde6e28, 0x1cca4229c690})
+	google.golang.org/grpc@v1.80.0/internal/grpcsync/callback_serializer.go:88 +0xcc
+created by google.golang.org/grpc/internal/grpcsync.NewCallbackSerializer in goroutine 1
+	google.golang.org/grpc@v1.80.0/internal/grpcsync/callback_serializer.go:52 +0x10c
+
+goroutine 100 [chan receive, 2 minutes]:
+google.golang.org/grpc/internal/grpcsync.(*CallbackSerializer).run(0x1cca4223c180, {0xde6e28, 0x1cca4223a0a0})
+	google.golang.org/grpc@v1.80.0/internal/grpcsync/callback_serializer.go:88 +0xcc
+created by google.golang.org/grpc/internal/grpcsync.NewCallbackSerializer in goroutine 1
+	google.golang.org/grpc@v1.80.0/internal/grpcsync/callback_serializer.go:52 +0x10c
+
+goroutine 101 [chan receive, 2 minutes]:
+google.golang.org/grpc/internal/grpcsync.(*CallbackSerializer).run(0x1cca4223c1b0, {0xde6e28, 0x1cca4223a0f0})
+	google.golang.org/grpc@v1.80.0/internal/grpcsync/callback_serializer.go:88 +0xcc
+created by google.golang.org/grpc/internal/grpcsync.NewCallbackSerializer in goroutine 1
+	google.golang.org/grpc@v1.80.0/internal/grpcsync/callback_serializer.go:52 +0x10c
+
+goroutine 102 [select]:
+go.opentelemetry.io/otel/sdk/trace.(*batchSpanProcessor).processQueue(0x1cca4229e0b0)
+	go.opentelemetry.io/otel/sdk@v1.43.0/trace/batch_span_processor.go:325 +0xc8
+go.opentelemetry.io/otel/sdk/trace.NewBatchSpanProcessor.func2()
+	go.opentelemetry.io/otel/sdk@v1.43.0/trace/batch_span_processor.go:127 +0x24
+sync.(*WaitGroup).Go.func1()
+	sync/waitgroup.go:258 +0x48
+created by sync.(*WaitGroup).Go in goroutine 1
+	sync/waitgroup.go:238 +0x70
+
+goroutine 114 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x1cca41aac160, 0x37e11d600, 0x1cca41d70380)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 1
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 119 [select]:
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xde5570, 0x1cca41c52240}, 0x1cca41b37530, {0x1cca41d1d220, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:374 +0xa30
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xde5570, 0x1cca41c52240}, 0x1cca41b37530, {0x1cca41d1d220, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:173 +0x4a0
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4218ec30, {0xde6e28, 0x1cca4229c870}, 0x1cca41e7bf20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:182 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 134 [select]:
+github.com/mertovun/event-driven-notification-system/internal/outbox.(*Dispatcher).Run(0x1cca422ab560, {0xde6e28, 0x1cca4229c820})
+	github.com/mertovun/event-driven-notification-system/internal/outbox/dispatcher.go:70 +0x184
+main.run.func5()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:289 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 135 [select]:
+github.com/mertovun/event-driven-notification-system/internal/scheduler.(*Dispatcher).Run(0x1cca41f92300, {0xde6e28, 0x1cca4229c820})
+	github.com/mertovun/event-driven-notification-system/internal/scheduler/dispatcher.go:64 +0x150
+main.run.func6()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:292 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 136 [sync.WaitGroup.Wait, 2 minutes]:
+sync.runtime_SemacquireWaitGroup(0x0?, 0x0?)
+	runtime/sema.go:114 +0x38
+sync.(*WaitGroup).Wait(0x1cca422bbc88)
+	sync/waitgroup.go:206 +0xa8
+golang.org/x/sync/errgroup.(*Group).Wait(0x1cca422bbc80)
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x28
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run(0x1cca41f1a380, {0xde6e28?, 0x1cca4229c820?})
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:147 +0x4d0
+main.run.func7()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:295 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 137 [select]:
+github.com/mertovun/event-driven-notification-system/internal/sweeper.(*SendingSweeper).Run(0x1cca41f154d0, {0xde6e28, 0x1cca4229c820})
+	github.com/mertovun/event-driven-notification-system/internal/sweeper/sending.go:65 +0x150
+main.run.func8()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:298 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 138 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/audit.(*ChainVerifier).Run(0x1cca41f06120, {0xde6e28, 0x1cca4229c820})
+	github.com/mertovun/event-driven-notification-system/internal/audit/verifier.go:70 +0x13c
+main.run.func9()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:300 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 139 [select]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*DepthSampler).Run(0x1cca41f067c0, {0xde6e28, 0x1cca4229c820})
+	github.com/mertovun/event-driven-notification-system/internal/queue/depth_sampler.go:62 +0x1e8
+main.run.func10()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:304 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 140 [select, 1 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/ws.(*Hub).Run(0x1cca41f92240, {0xde6e28, 0x1cca4229c820})
+	github.com/mertovun/event-driven-notification-system/internal/ws/hub.go:57 +0x198
+main.run.func11()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:306 +0x24
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 141 [IO wait]:
+internal/poll.runtime_pollWait(0xffff6d98cc00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x1cca41b54080?, 0x10b5bc?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0x1cca41b54080)
+	internal/poll/fd_unix.go:613 +0x214
+net.(*netFD).accept(0x1cca41b54080)
+	net/fd_unix.go:150 +0x28
+net.(*TCPListener).accept(0x1cca41dc6000)
+	net/tcpsock_posix.go:159 +0x24
+net.(*TCPListener).Accept(0x1cca41dc6000)
+	net/tcpsock.go:387 +0x2c
+net/http.(*Server).Serve(0x1cca41dc2200, {0xde4810, 0x1cca41dc6000})
+	net/http/server.go:3434 +0x244
+net/http.(*Server).ListenAndServe(0x1cca41dc2200)
+	net/http/server.go:3360 +0x80
+main.run.func12()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:310 +0x9c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 142 [chan receive, 2 minutes]:
+main.run.func13()
+	github.com/mertovun/event-driven-notification-system/cmd/notifyd/main.go:317 +0x48
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 1
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 47 [IO wait]:
+internal/poll.runtime_pollWait(0xffff6d98d000, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x1cca41cb6080?, 0x1cca41c2b000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x1cca41cb6080, {0x1cca41c2b000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x1cca41cb6080, {0x1cca41c2b000?, 0x0?, 0x0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x1cca41f84010, {0x1cca41c2b000?, 0x1cca41cb8808?, 0x1cca41d1d410?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x1cca41bd2120, {0x1cca41d1d410, 0x7, 0x9f52b8?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdd9380, 0x1cca41bd2120}, {0x1cca41d1d410, 0x7, 0x7}, 0x7)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+github.com/rabbitmq/amqp091-go.(*reader).ReadFrame(0x1cca41dcff18)
+	github.com/rabbitmq/amqp091-go@v1.11.0/read.go:49 +0x54
+github.com/rabbitmq/amqp091-go.(*Connection).reader(0x1cca41bce160, {0xdda500, 0x1cca41f84010?})
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:781 +0x184
+created by github.com/rabbitmq/amqp091-go.Open in goroutine 136
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:303 +0x2dc
+
+goroutine 48 [select]:
+github.com/rabbitmq/amqp091-go.(*Connection).heartbeater(0x1cca41bce160, 0x37e11d600, 0x1cca41f8c2a0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:815 +0x114
+created by github.com/rabbitmq/amqp091-go.(*Connection).openTune in goroutine 136
+	github.com/rabbitmq/amqp091-go@v1.11.0/connection.go:1074 +0x680
+
+goroutine 118 [select]:
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xde5570, 0x1cca41b4f8c0}, 0x1cca41fa7a10, {0x1cca61f10f00, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:374 +0xa30
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xde5570, 0x1cca41b4f8c0}, 0x1cca41fa7a10, {0x1cca61f10f00, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:173 +0x4a0
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41c969f0, {0xde6e28, 0x1cca4229c870}, 0x1cca41f73f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:182 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 115 [select]:
+github.com/redis/go-redis/v9.(*channel).initHealthCheck.func1()
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:691 +0xb4
+created by github.com/redis/go-redis/v9.(*channel).initHealthCheck in goroutine 140
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:685 +0xa4
+
+goroutine 117 [select]:
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xde5570, 0x1cca41b4f7a0}, 0x1cca41b360c0, {0x1cca41d1c980, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:374 +0xa30
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xde5570, 0x1cca41b4f7a0}, 0x1cca41b360c0, {0x1cca41d1c980, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:173 +0x4a0
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4228af60, {0xde6e28, 0x1cca4229c870}, 0x1cca42131f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:182 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 116 [IO wait]:
+internal/poll.runtime_pollWait(0xffff6d98ce00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x1cca4228e100?, 0x1cca42262000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x1cca4228e100, {0x1cca42262000, 0x8000, 0x8000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x1cca4228e100, {0x1cca42262000?, 0x1cca41a84b48?, 0x34410?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x1cca4221c060, {0x1cca42262000?, 0x0?, 0x250?})
+	net/net.go:196 +0x34
+bufio.(*Reader).fill(0x1cca41d40780)
+	bufio/bufio.go:113 +0xe0
+bufio.(*Reader).Peek(0x1cca41d40780, 0x1)
+	bufio/bufio.go:152 +0x58
+github.com/redis/go-redis/v9/internal/proto.(*Reader).PeekReplyType(0x1cca4221c068)
+	github.com/redis/go-redis/v9@v9.19.0/internal/proto/reader.go:90 +0x28
+github.com/redis/go-redis/v9/push.(*Processor).ProcessPendingNotifications(0x1cca4221c040, {0xde6ed0, 0x1878800}, {{0x0, 0x0}, {0x0, 0x0}, {0xd27c20, 0x1cca422c75f0}, {0xd3af80, ...}, ...}, ...)
+	github.com/redis/go-redis/v9@v9.19.0/push/processor.go:61 +0x70
+github.com/redis/go-redis/v9.(*PubSub).processPendingPushNotificationWithReader(0x72?, {0xde6ed0?, 0x1878800?}, 0x0?, 0x0?)
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:607 +0xd0
+github.com/redis/go-redis/v9.(*PubSub).ReceiveTimeout.func1(0x1cca4221c068)
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:493 +0x44
+github.com/redis/go-redis/v9/internal/pool.(*Conn).WithReader(0x1cca41d24200?, {0xde6ed0?, 0x1878800?}, 0x43157d4aca0b1?, 0x1cca41a84ee0?)
+	github.com/redis/go-redis/v9@v9.19.0/internal/pool/conn.go:889 +0x100
+github.com/redis/go-redis/v9.(*PubSub).ReceiveTimeout(0x1cca422c75f0, {0xde6ed0, 0x1878800}, 0x0)
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:491 +0xe8
+github.com/redis/go-redis/v9.(*PubSub).Receive(...)
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:519
+github.com/redis/go-redis/v9.(*channel).initMsgChan.func1()
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:720 +0x78
+created by github.com/redis/go-redis/v9.(*channel).initMsgChan in goroutine 140
+	github.com/redis/go-redis/v9@v9.19.0/pubsub.go:714 +0xa8
+
+goroutine 122 [select]:
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xde5570, 0x1cca41ca05a0}, 0x1cca5ed121b0, {0x1cca70529f60, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:374 +0xa30
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xde5570, 0x1cca41ca05a0}, 0x1cca5ed121b0, {0x1cca70529f60, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:173 +0x4a0
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41c96a80, {0xde6e28, 0x1cca4229c870}, 0x1cca5a3a7f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:182 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 123 [select]:
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xde5570, 0x1cca41ca06c0}, 0x1cca41dfd680, {0x1cca42152b60, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:374 +0xa30
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xde5570, 0x1cca41ca06c0}, 0x1cca41dfd680, {0x1cca42152b60, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:173 +0x4a0
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41c96b10, {0xde6e28, 0x1cca4229c870}, 0x1cca5a3abf20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:182 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 124 [select]:
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).handle(_, {_, _}, {{{0xde5570, 0x1cca41ca07e0}, 0x1cca5fb6b140, {0x1cca5a89c260, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:374 +0xa30
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Pipeline).Handle(_, {_, _}, {{{0xde5570, 0x1cca41ca07e0}, 0x1cca5fb6b140, {0x1cca5a89c260, 0x10}, {0x0, 0x0}, ...}})
+	github.com/mertovun/event-driven-notification-system/internal/worker/pipeline.go:173 +0x4a0
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4228b230, {0xde6e28, 0x1cca4229c870}, 0x1cca41ee9f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:182 +0x288
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 125 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41c96bd0, {0xde6e28, 0x1cca4229c870}, 0x1cca41c9bf20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 126 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4228b2f0, {0xde6e28, 0x1cca4229c870}, 0x1cca41c71f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 127 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4218fbf0, {0xde6e28, 0x1cca4229c870}, 0x1cca41e29f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 128 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41dfc0c0, {0xde6e28, 0x1cca4229c870}, 0x1cca41dd1f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 161 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41c97290, {0xde6e28, 0x1cca4229c870}, 0x1cca41e17f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 162 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4218fdd0, {0xde6e28, 0x1cca4229c870}, 0x1cca41e2bf20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 163 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41dfc480, {0xde6e28, 0x1cca4229c870}, 0x1cca41e27f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 164 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41dfc570, {0xde6e28, 0x1cca4229c870}, 0x1cca41dcdf20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 165 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41c97470, {0xde6e28, 0x1cca4229c870}, 0x1cca41e2df20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 166 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41c96c60, {0xde6e28, 0x1cca4229c870}, 0x1cca41c9df20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 167 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4218f830, {0xde6e28, 0x1cca4229c870}, 0x1cca41c6df20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 168 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4218fa10, {0xde6e28, 0x1cca4229c870}, 0x1cca41c6ff20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 169 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41c96cf0, {0xde6e28, 0x1cca4229c870}, 0x1cca41e19f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 170 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41c96ed0, {0xde6e28, 0x1cca4229c870}, 0x1cca41c6bf20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 171 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca41c970b0, {0xde6e28, 0x1cca4229c870}, 0x1cca41e15f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 172 [select, 2 minutes]:
+github.com/mertovun/event-driven-notification-system/internal/queue.(*Consumer).Run(0x1cca4228aed0, {0xde6e28, 0x1cca4229c870}, 0x1cca41db1f20)
+	github.com/mertovun/event-driven-notification-system/internal/queue/consumer.go:172 +0x1a4
+github.com/mertovun/event-driven-notification-system/internal/worker.(*Manager).Run.func2()
+	github.com/mertovun/event-driven-notification-system/internal/worker/manager.go:141 +0x24c
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x4c
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 136
+	golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x90
+
+goroutine 173 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 172
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 174 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca41c96900, 0x1cca41f88690, 0x1cca41f88620)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 118
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 193 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 118
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 194 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4228b020, 0x1cca42196460, 0x1cca421963f0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 119
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 195 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 119
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 196 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218eb40, 0x1cca42196690, 0x1cca42196620)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 120
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 197 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 120
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 198 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218ed20, 0x1cca421968c0, 0x1cca42196850)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 121
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 199 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 121
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 175 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218ef00, 0x1cca41f88770, 0x1cca41f88700)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 122
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 200 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 122
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 176 [chan receive]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218f0e0, 0x1cca41f88850, 0x1cca41f887e0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 123
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 182 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 124
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 209 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4228b140, 0x1cca41f88930, 0x1cca41f888c0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 125
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 201 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 125
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 183 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218f380, 0x1cca41d34ee0, 0x1cca41d34e70)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 126
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 202 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 126
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 210 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218f4d0, 0x1cca41f88a10, 0x1cca41f889a0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 166
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 203 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 166
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 204 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218f620, 0x1cca42197180, 0x1cca42197110)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 167
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 205 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 167
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 206 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218f740, 0x1cca421973b0, 0x1cca42197340)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 168
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 207 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 168
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 211 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218f920, 0x1cca41f88af0, 0x1cca41f88a80)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 169
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 212 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 169
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 213 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218fb00, 0x1cca41f88d20, 0x1cca41f88cb0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 170
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 214 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 170
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 215 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca41c96de0, 0x1cca41f88f50, 0x1cca41f88ee0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 171
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 216 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 171
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 217 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca41c96fc0, 0x1cca41f89180, 0x1cca41f89110)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 161
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 218 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 161
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 219 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca41c971a0, 0x1cca41f893b0, 0x1cca41f89340)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 165
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 220 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 165
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 208 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca41c97380, 0x1cca421975e0, 0x1cca42197570)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 127
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 225 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 127
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 226 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca41c97560, 0x1cca42197810, 0x1cca421977a0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 162
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 227 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218fce0, 0x1cca42197a40, 0x1cca421979d0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 128
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 228 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 162
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 229 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 128
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 230 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca4218fec0, 0x1cca42197c70, 0x1cca42197c00)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 163
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 231 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 163
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 232 [chan receive, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*consumers).buffer(0x1cca41dfc390, 0x1cca42197d50, 0x1cca42197ce0)
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:61 +0xc8
+created by github.com/rabbitmq/amqp091-go.(*consumers).add in goroutine 164
+	github.com/rabbitmq/amqp091-go@v1.11.0/consumers.go:124 +0x198
+
+goroutine 221 [select, 2 minutes]:
+github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext.func1()
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1239 +0x7c
+created by github.com/rabbitmq/amqp091-go.(*Channel).ConsumeWithContext in goroutine 164
+	github.com/rabbitmq/amqp091-go@v1.11.0/channel.go:1238 +0x21c
+
+goroutine 185 [select, 2 minutes]:
+google.golang.org/grpc/internal/resolver/dns.(*dnsResolver).watcher(0x1cca41cb6400)
+	google.golang.org/grpc@v1.80.0/internal/resolver/dns/dns_resolver.go:224 +0x1a8
+created by google.golang.org/grpc/internal/resolver/dns.(*dnsBuilder).Build in goroutine 100
+	google.golang.org/grpc@v1.80.0/internal/resolver/dns/dns_resolver.go:153 +0x264
+
+goroutine 224 [IO wait]:
+internal/poll.runtime_pollWait(0xffff6d7e6e00, 0x72)
+	runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x1cca4228e480?, 0x1cca41e88000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x1cca4228e480, {0x1cca41e88000, 0x8000, 0x8000})
+	internal/poll/fd_unix.go:165 +0x234
+net.(*netFD).Read(0x1cca4228e480, {0x1cca41e88000?, 0xc?, 0x1?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x1cca4221c220, {0x1cca41e88000?, 0x8c2700?, 0x1cca41fc6820?})
+	net/net.go:196 +0x34
+bufio.(*Reader).Read(0x1cca41d40840, {0x1cca41b343c4, 0x9, 0x1cca422b8210?})
+	bufio/bufio.go:245 +0x188
+io.ReadAtLeast({0xdd9380, 0x1cca41d40840}, {0x1cca41b343c4, 0x9, 0x9}, 0x9)
+	io/io.go:335 +0x98
+io.ReadFull(...)
+	io/io.go:354
+golang.org/x/net/http2.readFrameHeader({0x1cca41b343c4, 0x9, 0x1cca00000000?}, {0xdd9380?, 0x1cca41d40840?})
+	golang.org/x/net@v0.53.0/http2/frame.go:250 +0x58
+golang.org/x/net/http2.(*Framer).ReadFrameHeader(0x1cca41b34380)
+	golang.org/x/net@v0.53.0/http2/frame.go:513 +0x60
+google.golang.org/grpc/internal/transport.(*framer).readFrame(0x1cca4228e500)
+	google.golang.org/grpc@v1.80.0/internal/transport/http_util.go:480 +0x44
+google.golang.org/grpc/internal/transport.(*http2Client).reader(0x1cca4221a908, 0x1cca42289110)
+	google.golang.org/grpc@v1.80.0/internal/transport/http2_client.go:1663 +0x150
+created by google.golang.org/grpc/internal/transport.NewHTTP2Client in goroutine 222
+	google.golang.org/grpc@v1.80.0/internal/transport/http2_client.go:411 +0x1554
+
+goroutine 233 [select]:
+google.golang.org/grpc/internal/transport.(*controlBuffer).get(0x1cca41f08b80, 0x1)
+	google.golang.org/grpc@v1.80.0/internal/transport/controlbuf.go:420 +0x13c
+google.golang.org/grpc/internal/transport.(*loopyWriter).run(0x1cca41b56b40)
+	google.golang.org/grpc@v1.80.0/internal/transport/controlbuf.go:597 +0x6c
+google.golang.org/grpc/internal/transport.NewHTTP2Client.func6()
+	google.golang.org/grpc@v1.80.0/internal/transport/http2_client.go:469 +0xac
+created by google.golang.org/grpc/internal/transport.NewHTTP2Client in goroutine 222
+	google.golang.org/grpc@v1.80.0/internal/transport/http2_client.go:467 +0x19b0
+
+goroutine 4190 [runnable]:
+syscall.Syscall(0x3f, 0x11, 0x1cca5f9be6a1, 0x1)
+	syscall/syscall_linux.go:74 +0x20
+syscall.read(0x1cca42272100?, {0x1cca5f9be6a1?, 0x0?, 0x1cca42402600?})
+	syscall/zsyscall_linux_arm64.go:736 +0x40
+syscall.Read(...)
+	syscall/syscall_unix.go:183
+internal/poll.ignoringEINTRIO(...)
+	internal/poll/fd_unix.go:738
+internal/poll.(*FD).Read(0x1cca42272100, {0x1cca5f9be6a1, 0x1, 0x1})
+	internal/poll/fd_unix.go:161 +0x1a0
+net.(*netFD).Read(0x1cca42272100, {0x1cca5f9be6a1?, 0x1cca422421c0?, 0x0?})
+	net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x1cca5e2320d8, {0x1cca5f9be6a1?, 0x1cca42443f98?, 0xa9c01?})
+	net/net.go:196 +0x34
+net/http.(*connReader).backgroundRead(0x1cca5f9be680)
+	net/http/server.go:702 +0x38
+created by net/http.(*connReader).startBackgroundRead in goroutine 4189
+	net/http/server.go:698 +0xb8
