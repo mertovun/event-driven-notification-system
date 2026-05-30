@@ -30,6 +30,15 @@ UPDATE outbox
 SET attempt_count = attempt_count + 1, last_error = $2, claimed_at = NULL, claimed_by = NULL
 WHERE id = $1;
 
+-- name: MarkOutboxUnpublishedRetry :exec
+-- Release the claim and record the error WITHOUT advancing attempt_count.
+-- Used when a publish fails because the broker is unavailable (infra outage,
+-- not a delivery attempt) — counting it would dead-letter a notification that
+-- never reached the broker. The next dispatcher tick reclaims and retries.
+UPDATE outbox
+SET last_error = $2, claimed_at = NULL, claimed_by = NULL
+WHERE id = $1;
+
 -- name: DeletePublishedOutboxBefore :exec
 DELETE FROM outbox WHERE published_at IS NOT NULL AND published_at < $1;
 

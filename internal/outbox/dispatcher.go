@@ -138,6 +138,13 @@ func (d *Dispatcher) publishRow(ctx context.Context, row gen.Outbox) {
 	ctx, span := tr.Start(ctx, "outbox.dispatch")
 	defer span.End()
 
+	// Re-inject the (now dispatch-scoped) context back into the headers so the
+	// worker that consumes this message continues the trace as a child of
+	// outbox.dispatch — not the original API span. Without this, the published
+	// traceparent still points at the API span and the worker's spans attach
+	// one level too high (or orphan entirely if the worker doesn't extract).
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+
 	// Priority comes off the smallint column; AMQP carries an uint8.
 	priority := uint8(row.Priority)
 	if priority > 9 {
@@ -173,6 +180,24 @@ func (d *Dispatcher) publishRow(ctx context.Context, row gen.Outbox) {
 }
 
 func (d *Dispatcher) markFailure(ctx context.Context, row gen.Outbox, pubErr error) {
+	// Broker-unavailable failures are infrastructure outages, not delivery
+	// attempts. Counting them toward MaxAttempts would dead-letter a
+	// notification that never even reached the broker — during a ~2.5s flap at
+	// the 250ms tick, 10 failed publishes would terminate a perfectly healthy
+	// message. Instead clear the claim and let the next tick retry, without
+	// advancing attempt_count, until the broker returns.
+	if errors.Is(pubErr, queue.ErrPublisherUnavailable) {
+		d.logger.Warn("outbox publish deferred; broker unavailable (not counted)", "id", row.ID, "err", pubErr)
+		errMsg := truncate(pubErr.Error(), 1024)
+		if err := d.q.MarkOutboxUnpublishedRetry(ctx, gen.MarkOutboxUnpublishedRetryParams{
+			ID:        row.ID,
+			LastError: &errMsg,
+		}); err != nil {
+			d.logger.Error("mark outbox retry (broker unavailable) failed", "id", row.ID, "err", err)
+		}
+		return
+	}
+
 	attempts := row.AttemptCount + 1
 	d.logger.Warn("outbox publish failed", "id", row.ID, "attempts", attempts, "err", pubErr)
 

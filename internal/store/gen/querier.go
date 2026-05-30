@@ -80,6 +80,11 @@ type Querier interface {
 	MarkFailed(ctx context.Context, arg MarkFailedParams) (Notification, error)
 	MarkOutboxFailed(ctx context.Context, arg MarkOutboxFailedParams) error
 	MarkOutboxPublished(ctx context.Context, id uuid.UUID) error
+	// Release the claim and record the error WITHOUT advancing attempt_count.
+	// Used when a publish fails because the broker is unavailable (infra outage,
+	// not a delivery attempt) — counting it would dead-letter a notification that
+	// never reached the broker. The next dispatcher tick reclaims and retries.
+	MarkOutboxUnpublishedRetry(ctx context.Context, arg MarkOutboxUnpublishedRetryParams) error
 	// Outbox dispatcher transition: pending → queued after publish confirm.
 	MarkQueued(ctx context.Context, id uuid.UUID) (Notification, error)
 	// Scheduler transition: scheduled → pending. CAS-style so a row that was

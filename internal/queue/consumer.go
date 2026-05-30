@@ -35,6 +35,12 @@ type Handler func(ctx context.Context, d Delivery) error
 // ErrTerminal — handler signal that the message should go to the DLQ, not retried.
 var ErrTerminal = errors.New("terminal: route to DLQ")
 
+// errBrokerDropped is returned by Consumer.Run when the delivery channel closes
+// because the broker connection dropped (as opposed to a clean ctx cancel). The
+// Manager treats it as recoverable: wait for reconnect, re-open the channel,
+// resume. Internal to the package.
+var errBrokerDropped = errors.New("amqp delivery channel closed (broker drop)")
+
 // ConsumerConnection wraps one shared amqp.Connection that multiple Consumers
 // share channels off. AMQP best practice is one TCP connection per process
 // (or per role) and N lightweight channels off it. An earlier shape dialed
@@ -44,9 +50,11 @@ var ErrTerminal = errors.New("terminal: route to DLQ")
 type ConsumerConnection struct {
 	url    string
 	logger *slog.Logger
+	ctx    context.Context
 
-	mu   sync.Mutex
-	conn *amqp.Connection
+	mu    sync.Mutex
+	conn  *amqp.Connection
+	ready chan struct{} // closed while a live connection exists; replaced on drop
 
 	closeOnce sync.Once
 	stopped   chan struct{}
@@ -54,15 +62,22 @@ type ConsumerConnection struct {
 
 // NewConsumerConnection dials AMQP and declares topology on a throwaway
 // channel. The shared connection is then handed out to NewConsumer via
-// (*ConsumerConnection).NewConsumer.
-func NewConsumerConnection(_ context.Context, url string, logger *slog.Logger) (*ConsumerConnection, error) {
+// (*ConsumerConnection).NewConsumer. The ctx governs reconnect attempts — when
+// it is cancelled, the background reconnect loop stops re-dialing.
+func NewConsumerConnection(ctx context.Context, url string, logger *slog.Logger) (*ConsumerConnection, error) {
 	cc := &ConsumerConnection{
 		url:     url,
 		logger:  logger,
+		ctx:     ctx,
+		ready:   make(chan struct{}),
 		stopped: make(chan struct{}),
 	}
 	if err := cc.dial(); err != nil {
-		return nil, err
+		// Broker down at startup: don't fail. Start the reconnect loop and
+		// return a usable connection whose consumers park on waitReady until
+		// the broker comes up. Lets the process boot with RabbitMQ down.
+		cc.logger.Warn("amqp consumer connection: broker unreachable at startup; will retry in background", "err", err)
+		go cc.reconnectLoop()
 	}
 	return cc, nil
 }
@@ -87,12 +102,109 @@ func (cc *ConsumerConnection) dial() error {
 	}
 	_ = ch.Close()
 
+	closeCh := make(chan *amqp.Error, 1)
+	conn.NotifyClose(closeCh)
+
 	cc.mu.Lock()
 	cc.conn = conn
+	// Signal readiness: close (or recreate-then-close) the ready gate so
+	// waitReady unblocks for every worker currently parked on a broker drop.
+	select {
+	case <-cc.ready:
+		// already closed from a prior successful dial — leave it closed
+	default:
+		close(cc.ready)
+	}
 	cc.mu.Unlock()
+
+	go cc.watchClose(closeCh)
 
 	cc.logger.Info("amqp consumer connection established", "url-redacted", redactURL(cc.url))
 	return nil
+}
+
+// watchClose blocks until the broker connection drops, then re-dials with
+// exponential backoff until success, ctx cancel, or Close(). Mirrors the
+// publisher's reconnect loop so a broker blip no longer crashes the process.
+func (cc *ConsumerConnection) watchClose(closeCh chan *amqp.Error) {
+	select {
+	case <-cc.stopped:
+		return
+	case <-cc.ctx.Done():
+		return
+	case err, ok := <-closeCh:
+		if !ok {
+			return
+		}
+		cc.logger.Warn("amqp consumer connection closed; reconnecting", "err", err)
+	}
+
+	// Arm a fresh ready gate so workers calling waitReady block until the
+	// reconnect below succeeds.
+	cc.mu.Lock()
+	cc.ready = make(chan struct{})
+	cc.conn = nil
+	cc.mu.Unlock()
+
+	cc.reconnectLoop()
+}
+
+// reconnectLoop re-dials with exponential backoff (1s→30s) until success,
+// ctx cancel, or Close(). A successful dial arms a fresh watchClose for the
+// new connection. Shared by the startup path (broker down at boot) and
+// watchClose (broker dropped while running).
+func (cc *ConsumerConnection) reconnectLoop() {
+	backoff := time.Second
+	for {
+		select {
+		case <-cc.stopped:
+			return
+		case <-cc.ctx.Done():
+			return
+		default:
+		}
+		if err := cc.dial(); err == nil {
+			cc.logger.Info("amqp consumer reconnected")
+			return // dial() started a new watchClose for the new connection
+		} else {
+			cc.logger.Warn("amqp consumer reconnect failed", "err", err, "next-in", backoff)
+		}
+		select {
+		case <-cc.stopped:
+			return
+		case <-cc.ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
+		if backoff < 30*time.Second {
+			backoff *= 2
+		}
+	}
+}
+
+// WaitReady blocks until a live connection exists, the context is cancelled, or
+// the connection is permanently closed. Returns true if ready, false if the
+// caller should stop. Callers should invoke this before NewConsumer so that a
+// broker that is down at startup parks the worker instead of failing.
+func (cc *ConsumerConnection) WaitReady(ctx context.Context) bool {
+	return cc.waitReady(ctx)
+}
+
+// waitReady blocks until a live connection exists, the context is cancelled, or
+// the connection is permanently closed. Returns true if the connection is ready
+// to use, false if the caller should stop (shutdown).
+func (cc *ConsumerConnection) waitReady(ctx context.Context) bool {
+	cc.mu.Lock()
+	ready := cc.ready
+	cc.mu.Unlock()
+	select {
+	case <-ready:
+		return true
+	case <-ctx.Done():
+		return false
+	case <-cc.stopped:
+		return false
+	}
 }
 
 // channel returns a fresh AMQP channel on the shared connection. Callers
@@ -124,6 +236,7 @@ func (cc *ConsumerConnection) Close() error {
 // One Consumer per (channel, replica). Prefetch=1 to make priority queues honour priority.
 // Holds a channel on a shared ConsumerConnection — no per-Consumer TCP connection.
 type Consumer struct {
+	cc        *ConsumerConnection
 	queueName string
 	prefetch  int
 	logger    *slog.Logger
@@ -144,9 +257,24 @@ func NewConsumer(_ context.Context, cc *ConsumerConnection, queueName string, pr
 	}
 	logger.Info("amqp consumer ready", "queue", queueName, "prefetch", prefetch)
 	return &Consumer{
-		queueName: queueName, prefetch: prefetch, logger: logger,
+		cc: cc, queueName: queueName, prefetch: prefetch, logger: logger,
 		channel: ch,
 	}, nil
+}
+
+// reopen acquires a fresh channel on the (reconnected) shared connection and
+// re-applies prefetch. Called after a broker drop once the connection is back.
+func (c *Consumer) reopen() error {
+	ch, err := c.cc.channel()
+	if err != nil {
+		return fmt.Errorf("acquire channel: %w", err)
+	}
+	if err := ch.Qos(c.prefetch, 0, false); err != nil {
+		_ = ch.Close()
+		return fmt.Errorf("basic.qos: %w", err)
+	}
+	c.channel = ch
+	return nil
 }
 
 // Run subscribes and invokes handler for each delivery until ctx is cancelled or the
@@ -165,6 +293,13 @@ func (c *Consumer) Run(ctx context.Context, h Handler) error {
 		nil,
 	)
 	if err != nil {
+		// If the broker connection died between channel acquisition and the
+		// basic.consume call, the channel is already closed and this fails
+		// with a 504. That's a broker drop, not a genuine failure — signal
+		// the resume path to wait for reconnect rather than crashing.
+		if ctx.Err() == nil && c.channel.IsClosed() {
+			return errBrokerDropped
+		}
 		return fmt.Errorf("basic.consume: %w", err)
 	}
 
@@ -176,7 +311,15 @@ func (c *Consumer) Run(ctx context.Context, h Handler) error {
 			return nil
 		case d, ok := <-deliveries:
 			if !ok {
-				return errors.New("delivery channel closed")
+				// Distinguish a clean shutdown (ctx already cancelled, handled
+				// by the case above on the next loop) from a broker-side drop.
+				// If ctx is still live, the broker connection died — signal the
+				// caller to wait for reconnect and resume rather than treating
+				// it as a fatal error.
+				if ctx.Err() != nil {
+					return nil
+				}
+				return errBrokerDropped
 			}
 			wrapped := Delivery{d: d}
 			if err := h(ctx, wrapped); err != nil {
@@ -188,6 +331,39 @@ func (c *Consumer) Run(ctx context.Context, h Handler) error {
 				continue
 			}
 			_ = wrapped.Ack()
+		}
+	}
+}
+
+// RunForever runs the consumer across broker reconnects. It returns nil on a
+// clean ctx cancel (shutdown). On a broker drop it waits for the shared
+// connection to reconnect, re-opens its channel, and resumes consuming —
+// turning a transient RabbitMQ outage into a recoverable pause instead of a
+// fatal error that tears the process down. Unacked in-flight messages are
+// redelivered by the broker after reconnect and deduped by the worker-side
+// CAS + SETNX stack, so no message is lost.
+func (c *Consumer) RunForever(ctx context.Context, h Handler) error {
+	for {
+		err := c.Run(ctx, h)
+		switch {
+		case err == nil:
+			return nil // clean shutdown
+		case errors.Is(err, errBrokerDropped):
+			// Drop the dead channel, wait for the connection to come back.
+			_ = c.channel.Close()
+			c.logger.Warn("consumer paused; waiting for broker reconnect", "queue", c.queueName)
+			if !c.cc.waitReady(ctx) {
+				return nil // ctx cancelled or connection permanently closed
+			}
+			if rerr := c.reopen(); rerr != nil {
+				// Connection came back but the channel re-open raced another
+				// drop; loop and wait again rather than failing the process.
+				c.logger.Warn("consumer channel re-open failed; retrying", "queue", c.queueName, "err", rerr)
+				continue
+			}
+			c.logger.Info("consumer resumed after reconnect", "queue", c.queueName)
+		default:
+			return err // genuine, non-recoverable failure
 		}
 	}
 }
